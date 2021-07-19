@@ -60,6 +60,7 @@ type File struct {
 	Functions  []Func
 	Interfaces []Interface
 	Structs    []Struct
+	AliasTypes []AliasType
 }
 
 type Import struct {
@@ -81,8 +82,14 @@ type Var struct {
 	Exported bool
 	Comment  string
 	Name     string
-	Type     string
+	Type     Type
 	Value    string
+}
+
+type AliasType struct {
+	Exported bool
+	Name     string
+	Type     Type
 }
 
 type Func struct {
@@ -98,7 +105,7 @@ type Field struct {
 	Exported bool
 	Comment  string
 	Name     string
-	Type     string
+	Type     Type
 	Tags     []FieldTag
 }
 
@@ -120,4 +127,12 @@ type Struct struct {
 	Name      string
 	Fields    []Field
 	Functions []Func
+}
+
+type Type struct {
+	Kind       string // indent(int string ...), map, array, chan, struct, func
+	Package    string
+	Name       string
+	Ptr        bool
+	InnerTypes []Type
 }
