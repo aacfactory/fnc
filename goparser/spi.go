@@ -92,13 +92,23 @@ type AliasType struct {
 	Type     Type
 }
 
+type FuncReceiver struct {
+	Name string
+	Type Struct
+}
+
+type FuncItem struct {
+	Name string
+	Type Type
+}
+
 type Func struct {
 	Exported bool
 	Comment  string
 	Name     string
-	Receiver string
-	In       []Field
-	Out      []Field
+	Receiver *FuncReceiver
+	In       []FuncItem
+	Out      []FuncItem
 }
 
 type Field struct {
@@ -122,11 +132,10 @@ type Interface struct {
 }
 
 type Struct struct {
-	Exported  bool
-	Comment   string
-	Name      string
-	Fields    []Field
-	Functions []Func
+	Exported bool
+	Comment  string
+	Name     string
+	Fields   []Field
 }
 
 type Type struct {

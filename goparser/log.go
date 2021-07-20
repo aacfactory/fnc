@@ -1,16 +1,16 @@
-package codegen
+package goparser
 
 import "github.com/aacfactory/logs"
 
 var _log logs.Logs
 
-func CreateLog(debug bool) {
+func EnableLog(debug bool) {
 	level := logs.LogInfoLevel
 	if debug {
 		level = logs.LogDebugLevel
 	}
 	_log = logs.New(logs.LogOption{
-		Name:             "FNC",
+		Name:             "GO PARSER",
 		Formatter:        logs.LogConsoleFormatter,
 		ActiveLevel:      level,
 		Colorable:        true,
@@ -21,7 +21,7 @@ func CreateLog(debug bool) {
 func Log() logs.Logs {
 	if _log == nil {
 		_log = logs.New(logs.LogOption{
-			Name:             "FNC",
+			Name:             "GO PARSER",
 			Formatter:        logs.LogConsoleFormatter,
 			ActiveLevel:      logs.LogWarnLevel,
 			Colorable:        true,

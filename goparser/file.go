@@ -74,6 +74,7 @@ func ParseFile(path string) (file File, err error) {
 								Type:     type0,
 								Value:    value,
 							})
+							Log().Debugf("const %s, type is %v", name, type0)
 						}
 					}
 				} else if gen.Tok == token.VAR {
@@ -86,19 +87,23 @@ func ParseFile(path string) (file File, err error) {
 						size := len(valueSpec.Names)
 						for i := 0; i < size; i++ {
 							name := valueSpec.Names[i].Name
-							value := valueSpec.Values[0].(*ast.BasicLit).Value
+							// todo parse value
+							//value := valueSpec.Values[0].(*ast.BasicLit).Value
 							comment := ""
 							if valueSpec.Comment != nil {
 								comment = valueSpec.Comment.Text()
 							}
-							type0 := ParseType(valueSpec.Type)
-							file.Variables = append(file.Variables, Var{
-								Exported: IsExported(name),
-								Comment:  comment,
-								Name:     name,
-								Type:     type0,
-								Value:    value,
-							})
+							type0, typeOk := ParseType(valueSpec.Type)
+							if typeOk {
+								file.Variables = append(file.Variables, Var{
+									Exported: IsExported(name),
+									Comment:  comment,
+									Name:     name,
+									Type:     type0,
+									Value:    "",
+								})
+							}
+							Log().Debugf("var %s, type is %v", name, type0)
 						}
 					}
 				} else if gen.Tok == token.TYPE {
@@ -109,76 +114,49 @@ func ParseFile(path string) (file File, err error) {
 							return
 						}
 						name := typeSpec.Name.String()
-						fmt.Println("type", name, reflect.TypeOf(typeSpec.Type), typeSpec)
 						switch typeSpec.Type.(type) {
 						case *ast.StarExpr:
-							// alias type
-							ptrExpr := typeSpec.Type.(*ast.StarExpr)
-							aliasType, isIdent := ptrExpr.X.(*ast.Ident)
-							if isIdent {
-								file.AliasTypes = append(file.AliasTypes, AliasType{
-									Exported: aliasType.IsExported(),
-									Name:     name,
-									Type:     Type{
-										Kind:       "indent",
-										Package:    "",
-										Name:       aliasType.String(),
-										Ptr:        false,
-										InnerTypes: nil,
-									},
-								})
-							}
+							Log().Debugf("type %s, type is %v, it is not supported", name, reflect.TypeOf(typeSpec.Type))
 						case *ast.Ident:
-							// alias type
-							aliasType := typeSpec.Type.(*ast.Ident)
-							file.AliasTypes = append(file.AliasTypes, AliasType{
-								Exported: aliasType.IsExported(),
-								Name:     name,
-								Type:     Type{
-									Kind:       "indent",
-									Package:    "",
-									Name:       aliasType.String(),
-									Ptr:        false,
-									InnerTypes: nil,
-								},
-							})
+							Log().Debugf("type %s, type is %v, it is not supported", name, reflect.TypeOf(typeSpec.Type))
 						case *ast.StructType:
-
+							struct0, structOk := ParseStruct(typeSpec)
+							if structOk {
+								file.Structs = append(file.Structs, struct0)
+							}
 						case *ast.FuncType:
 							// alias type
-
+							Log().Debugf("type %s, type is %v, it is not supported", name, reflect.TypeOf(typeSpec.Type))
 						case *ast.InterfaceType:
-
+							Log().Debugf("type %s, type is %v, it is not supported", name, reflect.TypeOf(typeSpec.Type))
 						case *ast.ArrayType:
 							// alias type
-
+							Log().Debugf("type %s, type is %v, it is not supported", name, reflect.TypeOf(typeSpec.Type))
 						case *ast.MapType:
 							// alias type
-
+							Log().Debugf("type %s, type is %v, it is not supported", name, reflect.TypeOf(typeSpec.Type))
 						case *ast.ChanType:
 							// alias type
+							Log().Debugf("type %s, type is %v, it is not supported", name, reflect.TypeOf(typeSpec.Type))
 
 						default:
-							err = fmt.Errorf("scan %s failed, get type gen decl[%d, %d], but it is bad", path, gen.Pos(), gen.End())
+							Log().Debugf("type %s, type is %v, it is not supported", name, reflect.TypeOf(typeSpec.Type))
 							return
 						}
 					}
 				}
-				// import const var type
-				// d := decl.(*ast.GenDecl)
-				// d.Tok == ?
-				// d.Specs
 			case *ast.FuncDecl:
-
+				funcDecl := decl.(*ast.FuncDecl)
+				fn, fnOk := ParseFuncDecl(funcDecl)
+				if fnOk {
+					file.Functions = append(file.Functions, fn)
+				}
 			case *ast.BadDecl:
 				// error
 
 			}
 		}
 
-	}
-	for _, object := range f.Scope.Objects {
-		fmt.Println("object", object)
 	}
 	return
 }
