@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Wang Min Xiang
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package codegen
 
 import (
@@ -149,11 +165,11 @@ func loadFnFile(project *Project, f *ast.File) (fnFile FnFile, has bool, err err
 }
 
 type FnFile struct {
-	Path        string `json:"path,omitempty"`
-	Doc         []string `json:"doc,omitempty"`
-	Package     string `json:"package,omitempty"`
-	Imports     []Import `json:"imports,omitempty"`
-	Functions   []Fn `json:"functions,omitempty"`
+	Path      string   `json:"path,omitempty"`
+	Doc       []string `json:"doc,omitempty"`
+	Package   string   `json:"package,omitempty"`
+	Imports   []Import `json:"imports,omitempty"`
+	Functions []Fn     `json:"functions,omitempty"`
 }
 
 func FindImport(imports []Import, name string) (result Import, has bool) {
@@ -182,52 +198,52 @@ func (i *Import) Static() bool {
 
 type FuncItem struct {
 	Name string `json:"name,omitempty"`
-	Type Type `json:"type,omitempty"`
+	Type Type   `json:"type,omitempty"`
 }
 
 type Fn struct {
-	Exported bool             `json:"exported,omitempty"`
+	Exported bool `json:"exported,omitempty"`
 	// key - import name
 	Imports map[string]Import `json:"imports,omitempty"`
-	Doc      []string `json:"doc,omitempty"`
-	Address  string `json:"address,omitempty"`
-	Proxy    []string `json:"proxy,omitempty"`
-	OpenAPI  string `json:"openApi,omitempty"`
-	Name     string `json:"name,omitempty"`
-	In       []FuncItem `json:"in,omitempty"`
-	Out      []FuncItem `json:"out,omitempty"`
+	Doc     []string          `json:"doc,omitempty"`
+	Address string            `json:"address,omitempty"`
+	Proxy   []string          `json:"proxy,omitempty"`
+	OpenAPI string            `json:"openApi,omitempty"`
+	Name    string            `json:"name,omitempty"`
+	In      []FuncItem        `json:"in,omitempty"`
+	Out     []FuncItem        `json:"out,omitempty"`
 }
 
 type Type struct {
-	IsBasic     bool `json:"isBasic,omitempty"`
-	IsStruct    bool `json:"isStruct,omitempty"`
-	IsInterface bool `json:"isInterface,omitempty"`
-	IsPtr       bool `json:"isPtr,omitempty"`
-	IsArray     bool `json:"isArray,omitempty"`
-	IsMap       bool `json:"isMap,omitempty"`
-	IsErr       bool `json:"isErr,omitempty"`
-	Package     Import `json:"package,omitempty"`
-	Name        string `json:"name,omitempty"`
+	IsBasic     bool    `json:"isBasic,omitempty"`
+	IsStruct    bool    `json:"isStruct,omitempty"`
+	IsInterface bool    `json:"isInterface,omitempty"`
+	IsPtr       bool    `json:"isPtr,omitempty"`
+	IsArray     bool    `json:"isArray,omitempty"`
+	IsMap       bool    `json:"isMap,omitempty"`
+	IsErr       bool    `json:"isErr,omitempty"`
+	Package     Import  `json:"package,omitempty"`
+	Name        string  `json:"name,omitempty"`
 	Struct      *Struct `json:"struct,omitempty"`
-	InnerType   *Type `json:"innerType,omitempty"`
+	InnerType   *Type   `json:"innerType,omitempty"`
 }
 
 type Struct struct {
-	Exported bool `json:"exported,omitempty"`
+	Exported bool     `json:"exported,omitempty"`
 	Doc      []string `json:"doc,omitempty"`
-	Name     string `json:"name,omitempty"`
-	Fields   []Field `json:"fields,omitempty"`
+	Name     string   `json:"name,omitempty"`
+	Fields   []Field  `json:"fields,omitempty"`
 }
 
 type Field struct {
-	Exported bool `json:"exported,omitempty"`
-	Doc      []string `json:"doc,omitempty"`
-	Name     string `json:"name,omitempty"`
-	Type     Type `json:"type,omitempty"`
+	Exported bool       `json:"exported,omitempty"`
+	Doc      []string   `json:"doc,omitempty"`
+	Name     string     `json:"name,omitempty"`
+	Type     Type       `json:"type,omitempty"`
 	Tags     []FieldTag `json:"tags,omitempty"`
 }
 
 type FieldTag struct {
-	Name   string `json:"name,omitempty"`
+	Name   string   `json:"name,omitempty"`
 	Values []string `json:"values,omitempty"`
 }

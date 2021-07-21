@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Wang Min Xiang
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package codegen
 
 import (
@@ -6,7 +22,7 @@ import (
 	"reflect"
 )
 
-func parseFnParams(project *Project, imports []Import, used map[string]Import, params *ast.FieldList) (p1 FuncItem, p2 FuncItem,  err error) {
+func parseFnParams(project *Project, imports []Import, used map[string]Import, params *ast.FieldList) (p1 FuncItem, p2 FuncItem, err error) {
 	if params == nil || len(params.List) != 2 {
 		err = fmt.Errorf("parse params is invalied, must has two params, first is fns.FnContext, secend is a struct typed")
 		return
@@ -16,14 +32,14 @@ func parseFnParams(project *Project, imports []Import, used map[string]Import, p
 	if err != nil {
 		return
 	}
-	p2, err = parseFnParam2(project, imports,used, params.List[1])
+	p2, err = parseFnParam2(project, imports, used, params.List[1])
 	if err != nil {
 		return
 	}
 	return
 }
 
-func parseFnParam1(project *Project, imports []Import, used map[string]Import, param *ast.Field) (p FuncItem,  err error) {
+func parseFnParam1(project *Project, imports []Import, used map[string]Import, param *ast.Field) (p FuncItem, err error) {
 	if param == nil {
 		err = fmt.Errorf("parse first param failed, it is nil")
 		return
@@ -63,12 +79,12 @@ func parseFnParam1(project *Project, imports []Import, used map[string]Import, p
 
 	p.Type = Type{
 		IsInterface: true,
-		Package:     Import{
+		Package: Import{
 			Path: "github.com/aacfactory/fns",
 			Name: fpTypeStructPkg,
 		},
-		Name:        "FnContext",
-		InnerType:   nil,
+		Name:      "FnContext",
+		InnerType: nil,
 	}
 
 	return
