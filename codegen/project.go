@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/types"
 	"golang.org/x/tools/go/loader"
-	"io"
 	"io/fs"
 	"io/ioutil"
 	"path/filepath"
@@ -22,25 +22,21 @@ func LoadProject(path string) (p *Project, err error) {
 		return
 	}
 
-	filenameMap := make(map[string]string)
+	files := make(map[string][]string)
 
-	filenamesErr := loadFilenames(path, filenameMap)
-	if filenamesErr != nil {
-		err = fmt.Errorf("fnc load project failed, %v", filenamesErr)
+	filesErr := loadPackageFiles(path, mod.Name, files)
+	if filesErr != nil {
+		err = fmt.Errorf("fnc load project failed, %v", filesErr)
 		return
 	}
 
-	if len(filenameMap) == 0 {
+	if len(files) == 0 {
 		err = fmt.Errorf("fnc load project failed, no go files loaded")
 		return
 	}
 
-	filenames := make([]string, 0, 1)
-	for k, _ := range filenameMap {
-		filenames = append(filenames, k)
-	}
-
 	config := loader.Config{
+		Cwd:         path,
 		ParserMode:  parser.ParseComments,
 		AllowErrors: true,
 		TypeChecker: types.Config{
@@ -50,7 +46,9 @@ func LoadProject(path string) (p *Project, err error) {
 		},
 	}
 
-	config.CreateFromFilenames(path, filenames...)
+	for pkg, filenames := range files {
+		config.CreateFromFilenames(pkg, filenames...)
+	}
 
 	program, loadErr := config.Load()
 	if loadErr != nil {
@@ -59,88 +57,155 @@ func LoadProject(path string) (p *Project, err error) {
 	}
 
 	p = &Project{
-		Path:      path,
-		Module:    mod,
-		Program:   program,
-		Filenames: filenames,
+		Path:    path,
+		Module:  mod,
+		Program: program,
 	}
 
 	return
 }
 
-type Module struct {
-	Name     string
-	Version  string
-	Requires []Require
-}
-
-type Require struct {
-	Name    string
-	Version string
-}
-
 type Project struct {
-	Path      string
-	Module    Module
-	Program   *loader.Program
-	Filenames []string
+	Path    string          `json:"path,omitempty"`
+	Module  Module          `json:"module,omitempty"`
+	Program *loader.Program `json:"-"`
+	Fns     []FnFile        `json:"fns,omitempty"`
+	// Structs
+	// key = package(path).StructName
+	Structs map[string]Struct `json:"structs,omitempty"`
 }
 
-func loadModuleFile(path string) (mod Module, err error) {
-	modFilePath := filepath.Join(path, "go.mod")
-	content, readErr := ioutil.ReadFile(modFilePath)
-	if readErr != nil {
-		err = fmt.Errorf("read go.mod failed, %v", readErr)
+func (p *Project) FindStruct(pkgPath string, name string) (str Struct, has bool) {
+	str, has = p.Structs[fmt.Sprintf("%s.%s", pkgPath, name)]
+	return
+}
+
+func (p *Project) PutStruct(pkgPath string, name string, str Struct) {
+	_, has := p.Structs[fmt.Sprintf("%s.%s", pkgPath, name)]
+	if has {
 		return
 	}
-	if content == nil || len(content) == 0 {
-		err = fmt.Errorf("read go.mod failed, no content")
+	p.Structs[fmt.Sprintf("%s.%s", pkgPath, name)] = str
+	return
+}
+
+func (p *Project) FindObject(pkgName string, name string) (obj types.Object, has bool) {
+	pkg := p.Program.Package(pkgName)
+	if pkg == nil {
 		return
 	}
-
-	buf := bufio.NewReader(bytes.NewReader(content))
-
-	reqFlag := false
-	for {
-		lineContent, _, readLineErr := buf.ReadLine()
-		if readLineErr != nil {
-			if readLineErr == io.EOF {
-				break
-			}
-			err = fmt.Errorf("reade go.mod failed, %v", readLineErr)
-		}
-		line := strings.TrimSpace(string(lineContent))
-		if len(line) == 0 {
+	if pkg.Defs == nil {
+		return
+	}
+	for ident, object := range pkg.Defs {
+		if object == nil {
 			continue
 		}
-		// name
-		if idx := strings.Index(line, "module "); idx == 0 {
-			mod.Name = strings.TrimSpace(line[7+idx:])
-			continue
-		}
-		// version
-		if idx := strings.Index(line, "go "); idx == 0 {
-			mod.Version = strings.TrimSpace(line[3+idx:])
-			continue
-		}
-		// require
-		if strings.Index(line, "require (") == 0 {
-			reqFlag = true
-			continue
-		}
-		if reqFlag {
-			if strings.Index(line, ")") == 0 {
-				reqFlag = false
+		if ident.Name == name {
+			if object.Type() == nil {
 				continue
 			}
-			if strings.Index(line, "\t") == 0 {
-				line = line[2:]
+			if object.Type().String() == fmt.Sprintf("%s.%s", pkgName, name) {
+				has = true
+				obj = object
+				return
 			}
-			items := strings.Split(line, " ")
-			mod.Requires = append(mod.Requires, Require{
-				Name:    items[0],
-				Version: items[1],
-			})
+		}
+	}
+	return
+}
+
+func (p *Project) TypeOf(expr ast.Expr) (typ types.Type, has bool) {
+	if p.Program == nil {
+		panic(fmt.Errorf("fnc get type of expr failed, program is not setup"))
+		return
+	}
+	// created
+	for _, info := range p.Program.Created {
+		typ = info.TypeOf(expr)
+		if typ != nil {
+			has = true
+			return
+		}
+	}
+	// imported
+	for _, info := range p.Program.Imported {
+		typ = info.TypeOf(expr)
+		if typ != nil {
+			has = true
+			return
+		}
+	}
+	return
+}
+
+func (p *Project) ObjectOf(ident *ast.Ident) (obj types.Object, has bool) {
+	if p.Program == nil {
+		panic(fmt.Errorf("fnc get object of ident failed, program is not setup"))
+		return
+	}
+	// created
+	for _, info := range p.Program.Created {
+		obj = info.ObjectOf(ident)
+		if obj != nil {
+			has = true
+			return
+		}
+	}
+	// imported
+	for _, info := range p.Program.Imported {
+		obj = info.ObjectOf(ident)
+		if obj != nil {
+			has = true
+			return
+		}
+	}
+	return
+}
+
+func (p *Project) FilepathOfFile(f *ast.File) (filePath string, has bool) {
+	fileInfo := p.Program.Fset.File(f.Pos())
+	if fileInfo == nil {
+		return
+	}
+	filePath = fileInfo.Name()
+	has = true
+	return
+}
+
+func (p *Project) PackageNameOfFile(f *ast.File) (name string, has bool) {
+	pkgPos := p.Program.Fset.Position(f.Package)
+	path := pkgPos.Filename
+	if path == "" {
+		return
+	}
+	lineNo := pkgPos.Line
+	if lineNo < 1 {
+		return
+	}
+
+	column := pkgPos.Column
+	if column < 0 {
+		return
+	}
+
+	content, readErr := ioutil.ReadFile(path)
+	if readErr != nil {
+		return
+	}
+	buf := bufio.NewReader(bytes.NewReader(content))
+	lines := 0
+	for {
+		lines++
+		lineContent, _, lineErr := buf.ReadLine()
+		if lineNo == lines {
+			items := strings.Split(string(lineContent), " ")
+			name = items[column]
+			has = name != ""
+			return
+		}
+		if lineErr != nil {
+			break
 		}
 	}
 

@@ -1,8 +1,19 @@
 package codegen
 
-func Generate(path string, plugins []string) {
+import (
+	"fmt"
+	"path/filepath"
+)
 
-	project, projectErr := LoadProject(path)
+func Generate(path string, plugins []string) (err error) {
+
+	projectPath, projectPathErr := filepath.Abs(path)
+	if projectPathErr != nil {
+		err = fmt.Errorf("get abs filepath of %s failed, %v", path, projectPathErr)
+		return
+	}
+
+	project, projectErr := LoadProject(projectPath)
 	if projectErr != nil {
 		Log().Errorf("load project %s failed, %v", path, projectErr)
 		return
@@ -14,6 +25,7 @@ func Generate(path string, plugins []string) {
 		return
 	}
 
+
 	for _, fnFile := range fnFiles {
 		Log().Debugf("fn file %s", fnFile.Path)
 		for _, fn := range fnFile.Functions {
@@ -22,4 +34,5 @@ func Generate(path string, plugins []string) {
 		}
 	}
 
+return
 }

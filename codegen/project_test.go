@@ -16,7 +16,5 @@ func TestLoadProject(t *testing.T) {
 	t.Log("path:", project.Path)
 	t.Log("mod:", project.Module.Name, project.Module.Version, project.Module.Requires)
 	t.Log("files:")
-	for _, filename := range project.Filenames {
-		t.Log(filename)
-	}
+
 }

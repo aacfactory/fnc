@@ -3,53 +3,64 @@ package codegen
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"strings"
 )
 
 func LoadFn(project *Project) (fnFiles []FnFile, err error) {
 
-	for _, filename := range project.Filenames {
-		fmt.Println(filename)
-		fnFile, has, fileErr := loadFnFile(project, filename)
-		if fileErr != nil {
-			err = fmt.Errorf("load fn file failed, %v", fileErr)
-			return
-		}
-		if has {
-			fnFiles = append(fnFiles, fnFile)
+	for _, info := range project.Program.Created {
+		for _, file := range info.Files {
+			fnFile, has, fileErr := loadFnFile(project, file)
+			if fileErr != nil {
+				err = fmt.Errorf("load fn file failed, %v", fileErr)
+				return
+			}
+			if has {
+				fnFiles = append(fnFiles, fnFile)
+			}
 		}
 	}
 
 	return
 }
 
-func loadFnFile(project *Project, filename string) (fnFile FnFile, has bool, err error) {
+func loadFnFile(project *Project, f *ast.File) (fnFile FnFile, has bool, err error) {
 
-	f, parseErr := parser.ParseFile(project.Program.Fset, filename, nil, parser.ParseComments)
-	if parseErr != nil {
-		err = fmt.Errorf("parse file %s failed, %v", filename, parseErr)
+	fileInfo := project.Program.Fset.File(f.Pos())
+	if fileInfo == nil {
+		err = fmt.Errorf("get %s file failed", f.Name.Name)
 		return
 	}
+	filename := fileInfo.Name()
 	// path
 	fnFile.Path = filename
 	// file doc
-	fnFile.Comment = f.Doc.Text()
+	fnFile.Doc = make([]string, 0, 1)
+	if f.Doc != nil && f.Doc.List != nil {
+		for _, line := range f.Doc.List {
+			fnFile.Doc = append(fnFile.Doc, line.Text)
+		}
+	}
 	// Package
-	fnFile.Package = f.Name.String()
+	pkgName, hasPkgName := project.PackageNameOfFile(f)
+	if !hasPkgName {
+		err = fmt.Errorf("read %s failed, package name is not founed", filename)
+		return
+	}
+	fnFile.Package = pkgName
 	// imports
 	if f.Imports != nil {
 		imports := make([]Import, 0, 1)
 		for _, spec := range f.Imports {
-			name := spec.Path.Value
-			alias := spec.Name.String()
-			anonymous := "_" == alias
-			static := "." == alias
+			path := strings.ReplaceAll(spec.Path.Value, "\"", "")
+			alias := spec.Name
+			name := path[strings.LastIndex(path, "/")+1:]
+			if alias != nil && alias.Name != "" {
+				name = alias.Name
+			}
 			import0 := Import{
-				Name:      name,
-				Alias:     alias,
-				Anonymous: anonymous,
-				Static:    static,
+				Path: path,
+				Name: name,
 			}
 			imports = append(imports, import0)
 		}
@@ -73,18 +84,25 @@ func loadFnFile(project *Project, filename string) (fnFile FnFile, has bool, err
 			if funcDecl.Doc == nil {
 				continue
 			}
+			fn := Fn{}
+			// name
+			fn.Name = funcDecl.Name.Name
+			fn.Exported = ast.IsExported(fn.Name)
+			// doc
 			comments := funcDecl.Doc.List
 			if comments == nil || len(comments) == 0 {
 				continue
 			}
 			address := ""
 			proxy := make([]string, 0, 1)
+			docs := make([]string, 0, 1)
 			openAPIContent := ""
 			for _, comment := range comments {
 				if comment == nil {
 					continue
 				}
 				line := comment.Text
+				docs = append(docs, line)
 				if strings.Contains(line, "@Fn") {
 					address = strings.TrimSpace(line[strings.Index(line, "@Fn")+4:])
 					continue
@@ -101,104 +119,24 @@ func loadFnFile(project *Project, filename string) (fnFile FnFile, has bool, err
 			if address == "" {
 				continue
 			}
-			fn := Fn{}
 			fn.Address = address
 			fn.Proxy = proxy
 			fn.OpenAPI = openAPIContent
-			fn.Name = funcDecl.Name.Name
-			fn.Exported = ast.IsExported(fn.Name)
-			fn.Comment = funcDecl.Doc.Text()
-			// in
-			params := funcDecl.Type.Params
-			if params == nil || len(params.List) != 2 {
-				err = fmt.Errorf("get fn %s %s, but params is invalied, must has two params, first is fns.FnContext, secend is a struct typed", filename, fn.Name)
+
+			fn.Doc = docs
+			fn.Imports = make(map[string]Import)
+			// params
+			p1, p2, paramsErr := parseFnParams(project, fnFile.Imports, fn.Imports, funcDecl.Type.Params)
+			if paramsErr != nil {
+				err = fmt.Errorf("%s:%s, %v", filename, fn.Name, paramsErr)
 				return
 			}
-			// fp 1
-			fp := params.List[0]
-			if fp.Names == nil || len(fp.Names) != 1 {
-				err = fmt.Errorf("get fn %s %s, but params is invalied, must has two params, first is fns.FnContext, secend is a struct typed", filename, fn.Name)
-				return
-			}
-			fpName := fp.Names[0].Name
-			fpTypeExpr, fpTypeExprOk := fp.Type.(*ast.SelectorExpr)
-			if !fpTypeExprOk {
-				err = fmt.Errorf("get fn %s %s, but params is invalied, must has two params, first is fns.FnContext, secend is a struct typed", filename, fn.Name)
-				return
-			}
-			fpTypeStructName := fpTypeExpr.Sel.Name
-			fpTypePkgExpr, fpTypePkgExprOk := fpTypeExpr.X.(*ast.Ident)
-			if !fpTypePkgExprOk {
-				err = fmt.Errorf("get fn %s %s, but params is invalied, must has two params, first is fns.FnContext, secend is a struct typed", filename, fn.Name)
-				return
-			}
-			fpTypeStructPkg := fpTypePkgExpr.Name
+			fn.In = append(fn.In, p1, p2)
 
-			if !(fpTypeStructPkg == "fns" && fpTypeStructName == "FnContext") {
-				err = fmt.Errorf("get fn %s %s, but params is invalied, must has two params, first is fns.FnContext, secend is a struct typed", filename, fn.Name)
-				return
-			}
+			// results
 
-			fpItem := FuncItem{
-				Name: fpName,
-				Type: Type{
-					Kind:      "interface",
-					Package:   "fns",
-					Name:      "FnContext",
-					InnerType: nil,
-				},
-			}
-			fn.In = append(fn.In, fpItem)
-			// fp 2
-			sp := params.List[1]
-			if sp.Names == nil || len(sp.Names) != 1 {
-				err = fmt.Errorf("get fn %s %s, but params is invalied, must has two params, first is fns.FnContext, secend is a struct typed", filename, fn.Name)
-				return
-			}
-			spName := sp.Names[0].Name
-
-			spItem := FuncItem{
-				Name: spName,
-				Type: Type{},
-			}
-			switch sp.Type.(type) {
-			case *ast.StarExpr:
-
-			case *ast.SelectorExpr:
-
-			case *ast.Ident:
-				ident := sp.Type.(*ast.Ident)
-				if ident.Obj == nil || ident.Obj.Kind != ast.Typ {
-					err = fmt.Errorf("get fn %s %s, but params is invalied, must has two params, first is fns.FnContext, secend is a struct typed", filename, fn.Name)
-					return
-				}
-				spec, specOk := ident.Obj.Decl.(*ast.TypeSpec)
-				if !specOk {
-					err = fmt.Errorf("get fn %s %s, but params is invalied, must has two params, first is fns.FnContext, secend is a struct typed", filename, fn.Name)
-					return
-				}
-				str, parsed := parseStruct(spec)
-				if !parsed {
-					err = fmt.Errorf("get fn %s %s, but params is invalied, must has two params, first is fns.FnContext, secend is a struct typed", filename, fn.Name)
-					return
-				}
-				spItem.Type.Name = ident.Obj.Name
-				spItem.Type.Struct = &str
-				spItem.Type.Kind = "struct"
-				fmt.Println(ident.Name, ident.Obj.Name, ident.Obj.Kind, str)
-			default:
-				err = fmt.Errorf("get fn %s %s, but params is invalied, must has two params, first is fns.FnContext, secend is a struct typed", filename, fn.Name)
-				return
-			}
-			//spTypeExpr, spTypeExprOk := sp.Type.(*ast.SelectorExpr)
-			//if !spTypeExprOk {
-			//	err = fmt.Errorf("get fn %s %s, but params is invalied, must has two params, first is fns.FnContext, secend is a struct typed", filename, fn.Name)
-			//	return
-			//}
-
-			//fmt.Println(fn.Name, spName, reflect.TypeOf(sp.Type))
-
-			// out
+			// fin
+			fns = append(fns, fn)
 		}
 	}
 
@@ -211,60 +149,85 @@ func loadFnFile(project *Project, filename string) (fnFile FnFile, has bool, err
 }
 
 type FnFile struct {
-	Path      string
-	Comment   string
-	Package   string
-	Imports   []Import
-	Functions []Fn
+	Path        string `json:"path,omitempty"`
+	Doc         []string `json:"doc,omitempty"`
+	Package     string `json:"package,omitempty"`
+	Imports     []Import `json:"imports,omitempty"`
+	Functions   []Fn `json:"functions,omitempty"`
+}
+
+func FindImport(imports []Import, name string) (result Import, has bool) {
+	for _, i := range imports {
+		if i.Name == name {
+			has = true
+			result = i
+			return
+		}
+	}
+	return
 }
 
 type Import struct {
-	Name      string
-	Alias     string
-	Anonymous bool
-	Static    bool
+	Path string `json:"path,omitempty"`
+	Name string `json:"name,omitempty"`
+}
+
+func (i *Import) Anonymous() bool {
+	return i.Name == "_"
+}
+
+func (i *Import) Static() bool {
+	return i.Name == "."
 }
 
 type FuncItem struct {
-	Name string
-	Type Type
+	Name string `json:"name,omitempty"`
+	Type Type `json:"type,omitempty"`
 }
 
 type Fn struct {
-	Exported bool
-	Comment  string
-	Address  string
-	Proxy    []string
-	OpenAPI  string
-	Name     string
-	In       []FuncItem
-	Out      []FuncItem
+	Exported bool             `json:"exported,omitempty"`
+	// key - import name
+	Imports map[string]Import `json:"imports,omitempty"`
+	Doc      []string `json:"doc,omitempty"`
+	Address  string `json:"address,omitempty"`
+	Proxy    []string `json:"proxy,omitempty"`
+	OpenAPI  string `json:"openApi,omitempty"`
+	Name     string `json:"name,omitempty"`
+	In       []FuncItem `json:"in,omitempty"`
+	Out      []FuncItem `json:"out,omitempty"`
 }
 
 type Type struct {
-	Kind      string // struct ptr array error basic
-	Package   string
-	Name      string
-	Struct    *Struct
-	InnerType *Type
+	IsBasic     bool `json:"isBasic,omitempty"`
+	IsStruct    bool `json:"isStruct,omitempty"`
+	IsInterface bool `json:"isInterface,omitempty"`
+	IsPtr       bool `json:"isPtr,omitempty"`
+	IsArray     bool `json:"isArray,omitempty"`
+	IsMap       bool `json:"isMap,omitempty"`
+	IsErr       bool `json:"isErr,omitempty"`
+	Package     Import `json:"package,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Struct      *Struct `json:"struct,omitempty"`
+	InnerType   *Type `json:"innerType,omitempty"`
 }
 
 type Struct struct {
-	Exported bool
-	Comment  string
-	Name     string
-	Fields   []Field
+	Exported bool `json:"exported,omitempty"`
+	Doc      []string `json:"doc,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Fields   []Field `json:"fields,omitempty"`
 }
 
 type Field struct {
-	Exported bool
-	Comment  string
-	Name     string
-	Type     Type
-	Tags     []FieldTag
+	Exported bool `json:"exported,omitempty"`
+	Doc      []string `json:"doc,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Type     Type `json:"type,omitempty"`
+	Tags     []FieldTag `json:"tags,omitempty"`
 }
 
 type FieldTag struct {
-	Name   string
-	Values []string
+	Name   string `json:"name,omitempty"`
+	Values []string `json:"values,omitempty"`
 }
