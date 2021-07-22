@@ -25,6 +25,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 type Project struct {
@@ -35,6 +36,12 @@ type Project struct {
 	Fns            []FnFile                   `json:"fns,omitempty"`
 	Structs        map[string]Struct          `json:"structs,omitempty"`
 	tmpStructMap   map[string]bool
+}
+
+type requiredProject struct {
+	name    string
+	program *loader.Program
+	err     error
 }
 
 func LoadProject(path string) (p *Project, err error) {
@@ -63,63 +70,91 @@ func LoadProject(path string) (p *Project, err error) {
 		ParserMode:  parser.ParseComments,
 		AllowErrors: true,
 		TypeChecker: types.Config{
-			Error: func(err error) {
-
-			},
+			Error: func(err error) {},
 		},
 	}
 
 	for pkg, filenames := range files {
 		config.CreateFromFilenames(pkg, filenames...)
 	}
-
 	importPrograms := make(map[string]*loader.Program)
-	gopath, hasGopath := os.LookupEnv("GOPATH")
-	if hasGopath {
-		modPrefix := filepath.Join(gopath, "pkg", "mod")
-		for _, require := range mod.Requires {
-			importCWD := filepath.Join(modPrefix, fmt.Sprintf("%s@%s", require.Name, require.Version))
-			if require.Replace != "" {
-				replace := require.Replace
-				if strings.Index(replace, ".") == 0 {
-					replace = filepath.Join(path, require.Replace)
+
+	if mod.Requires != nil && len(mod.Requires) > 0 {
+		gopath, hasGopath := os.LookupEnv("GOPATH")
+		if hasGopath {
+			modPrefix := filepath.Join(gopath, "pkg", "mod")
+			requiredCh := make(chan *requiredProject, 64)
+			wg := &sync.WaitGroup{}
+			for _, require := range mod.Requires {
+				wg.Add(1)
+				go func(wg *sync.WaitGroup, require Require, requiredCh chan *requiredProject) {
+					defer wg.Done()
+					importCWD := filepath.Join(modPrefix, fmt.Sprintf("%s@%s", require.Name, require.Version))
+					if require.Replace != "" {
+						replace := require.Replace
+						if strings.Index(replace, ".") == 0 {
+							replace = filepath.Join(path, require.Replace)
+						}
+						importCWD = replace
+					}
+					configOfImport := loader.Config{
+						Cwd:         importCWD,
+						ParserMode:  parser.ParseComments,
+						AllowErrors: true,
+						TypeChecker: types.Config{
+							Error: func(err error) {},
+						},
+					}
+					importModFiles := make(map[string][]string)
+
+					importModFilesErr := loadPackageFiles(importCWD, require.Name, importModFiles)
+					if importModFilesErr != nil {
+						requiredCh <- &requiredProject{
+							name:    require.Name,
+							program: nil,
+							err:     fmt.Errorf("fnc load project failed, %v", importModFilesErr),
+						}
+						return
+					}
+
+					if len(importModFiles) == 0 {
+						requiredCh <- &requiredProject{
+							name:    require.Name,
+							program: nil,
+							err:     fmt.Errorf("fnc load project failed, no go files loaded"),
+						}
+						return
+					}
+					for pkg, filenames := range importModFiles {
+						configOfImport.CreateFromFilenames(pkg, filenames...)
+					}
+					programOfImport, loadImportErr := configOfImport.Load()
+					if loadImportErr != nil {
+						err = fmt.Errorf("fnc load import mod project failed, %v", loadImportErr)
+						return
+					}
+					requiredCh <- &requiredProject{
+						name:    require.Name,
+						program: programOfImport,
+						err:     fmt.Errorf("fnc load project failed, no go files loaded"),
+					}
+				}(wg, require, requiredCh)
+			}
+			wg.Wait()
+			close(requiredCh)
+
+			for {
+				r, ok := <-requiredCh
+				if !ok {
+					break
 				}
-				importCWD = replace
+				importPrograms[r.name] = r.program
 			}
-			configOfImport := loader.Config{
-				Cwd:         importCWD,
-				ParserMode:  parser.ParseComments,
-				AllowErrors: true,
-				TypeChecker: types.Config{
-					Error: func(err error) {
+		} else {
+			Log().Warnf("fnc can not get GOOATH, so it will not parse imported in go.mod")
 
-					},
-				},
-			}
-			importModFiles := make(map[string][]string)
-
-			importModFilesErr := loadPackageFiles(importCWD, require.Name, importModFiles)
-			if importModFilesErr != nil {
-				err = fmt.Errorf("fnc load project failed, %v", importModFilesErr)
-				return
-			}
-
-			if len(importModFiles) == 0 {
-				err = fmt.Errorf("fnc load project failed, no go files loaded")
-				return
-			}
-			for pkg, filenames := range importModFiles {
-				configOfImport.CreateFromFilenames(pkg, filenames...)
-			}
-			programOfImport, loadImportErr := configOfImport.Load()
-			if loadImportErr != nil {
-				err = fmt.Errorf("fnc load import mod project failed, %v", loadImportErr)
-				return
-			}
-			importPrograms[require.Name] = programOfImport
 		}
-	} else {
-		Log().Warnf("fnc can not get GOOATH, so it will not parse imported in go.mod")
+
 	}
 
 	program, loadErr := config.Load()

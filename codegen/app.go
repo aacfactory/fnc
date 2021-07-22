@@ -20,25 +20,29 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 )
 
 func Generate(path string, plugins []string) (err error) {
 
 	projectPath, projectPathErr := filepath.Abs(path)
 	if projectPathErr != nil {
-		err = fmt.Errorf("get abs filepath of %s failed, %v", path, projectPathErr)
+		err = fmt.Errorf("get abs filepath of %s failed, %v", projectPath, projectPathErr)
 		return
 	}
 
+	projectPath = filepath.Clean(projectPath)
+	projectPath = strings.ReplaceAll(projectPath, "\\", "/")
+
 	project, projectErr := LoadProject(projectPath)
 	if projectErr != nil {
-		Log().Errorf("load project %s failed, %v", path, projectErr)
+		Log().Errorf("load project %s failed, %v", projectPath, projectErr)
 		return
 	}
 
 	loadFnErr := project.LoadFn()
 	if loadFnErr != nil {
-		Log().Errorf("load @Fn in project %s failed, %v", path, loadFnErr)
+		Log().Errorf("load @Fn in project %s failed, %v", projectPath, loadFnErr)
 		return
 	}
 

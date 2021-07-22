@@ -103,8 +103,9 @@ func (p *Project) parseStructField(file *ast.File, field *ast.Field) (f Field, o
 				return
 			}
 			f.Type = Type{
-				IsPtr: true,
-				Name:  fullName,
+				IsPtr:    true,
+				IsStruct: true,
+				Name:     fullName,
 			}
 		case *ast.SelectorExpr:
 			sExpr := expr.X.(*ast.SelectorExpr)
@@ -131,8 +132,9 @@ func (p *Project) parseStructField(file *ast.File, field *ast.Field) (f Field, o
 				return
 			}
 			f.Type = Type{
-				IsPtr: true,
-				Name:  fullName,
+				IsPtr:    true,
+				IsStruct: true,
+				Name:     fullName,
 			}
 		}
 		ok = true
@@ -233,8 +235,9 @@ func (p *Project) parseStructFieldArrayType(pkgPath string, imports []Import, ex
 				IsArray: true,
 				InnerTypes: []Type{
 					{
-						IsPtr: true,
-						Name:  fullName,
+						IsPtr:    true,
+						IsStruct: true,
+						Name:     fullName,
 					},
 				},
 			}
@@ -267,8 +270,9 @@ func (p *Project) parseStructFieldArrayType(pkgPath string, imports []Import, ex
 				IsArray: true,
 				InnerTypes: []Type{
 					{
-						IsPtr: true,
-						Name:  fullName,
+						IsPtr:    true,
+						IsStruct: true,
+						Name:     fullName,
 					},
 				},
 			}

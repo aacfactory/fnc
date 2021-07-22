@@ -22,6 +22,7 @@ import (
 	"github.com/aacfactory/fnc/codegen"
 	"github.com/urfave/cli/v2"
 	"os"
+	"runtime"
 )
 
 const (
@@ -44,6 +45,7 @@ limitations under the License.`
 )
 
 func main() {
+	runtime.GOMAXPROCS(0)
 	app := cli.NewApp()
 	app.Name = Name
 	app.Usage = Usage

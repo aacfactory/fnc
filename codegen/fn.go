@@ -25,7 +25,7 @@ import (
 func (p *Project) LoadFn() (err error) {
 	for _, info := range p.Program.Created {
 		for _, file := range info.Files {
-			fnFile, has, fileErr := loadFnFile(p, file)
+			fnFile, has, fileErr := p.loadFnFile(file)
 			if fileErr != nil {
 				err = fmt.Errorf("load fn file failed, %v", fileErr)
 				return
@@ -39,9 +39,9 @@ func (p *Project) LoadFn() (err error) {
 	return
 }
 
-func loadFnFile(project *Project, f *ast.File) (fnFile FnFile, has bool, err error) {
+func (p *Project) loadFnFile(f *ast.File) (fnFile FnFile, has bool, err error) {
 
-	fileInfo := project.Program.Fset.File(f.Pos())
+	fileInfo := p.Program.Fset.File(f.Pos())
 	if fileInfo == nil {
 		err = fmt.Errorf("get %s file failed", f.Name.Name)
 		return
@@ -53,14 +53,14 @@ func loadFnFile(project *Project, f *ast.File) (fnFile FnFile, has bool, err err
 	fnFile.Doc = parseDoc(f.Doc.Text())
 
 	// Package
-	pkgPath, _, hasPkg := project.PackageOfFile(f)
+	pkgPath, _, hasPkg := p.PackageOfFile(f)
 	if !hasPkg {
 		err = fmt.Errorf("read %s failed, package name is not founed", filename)
 		return
 	}
 	fnFile.Package = pkgPath
 	// imports
-	fnFile.Imports = project.GetImports(f)
+	fnFile.Imports = p.GetImports(f)
 
 	// func
 	fns := make([]Fn, 0, 1)
@@ -114,14 +114,20 @@ func loadFnFile(project *Project, f *ast.File) (fnFile FnFile, has bool, err err
 
 			fn.Imports = make(map[string]Import)
 			// params
-			p, paramsErr := parseFnParams(project, fnFile.Package, fnFile.Imports, fn.Imports, funcDecl.Type.Params)
+			params, paramsErr := p.parseFnParams(fnFile.Package, fnFile.Imports, fn.Imports, funcDecl.Type.Params)
 			if paramsErr != nil {
 				err = fmt.Errorf("%s:%s, %v", filename, fn.Name, paramsErr)
 				return
 			}
-			fn.In = p
+			fn.In = params
 
 			// results
+			results, resultsErr := p.parseFnResults(fnFile.Package, fnFile.Imports, fn.Imports, funcDecl.Type.Results)
+			if resultsErr != nil {
+				err = fmt.Errorf("%s:%s, %v", filename, fn.Name, resultsErr)
+				return
+			}
+			fn.Out = results
 
 			// fin
 			fns = append(fns, fn)

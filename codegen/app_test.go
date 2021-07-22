@@ -22,10 +22,12 @@ import (
 	"go/format"
 	"golang.org/x/tools/imports"
 	"io/ioutil"
+	"runtime"
 	"testing"
 )
 
 func TestGenerate(t *testing.T) {
+	runtime.GOMAXPROCS(0)
 
 	path := `D:\studio\workspace\go\src\github.com\aacfactory\example`
 

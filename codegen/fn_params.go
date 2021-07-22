@@ -22,22 +22,24 @@ import (
 	"reflect"
 )
 
-func parseFnParams(project *Project, pkgPath string, imports []Import, used map[string]Import, params *ast.FieldList) (p []FuncItem, err error) {
+func (p *Project) parseFnParams(pkgPath string, imports []Import, used map[string]Import, params *ast.FieldList) (param []FuncItem, err error) {
 	if params == nil || len(params.List) < 2 || len(params.List) > 2 {
-		err = fmt.Errorf("parse params is invalied, must has two params, first is fns.FnContext, secend maybe a struct typed")
+		err = fmt.Errorf("parse params is invalied, must has [1,2) params, first is fns.FnContext, secend maybe a struct typed")
 		return
 	}
 	p1, parseErr := parseFnParam1(imports, used, params.List[0])
 	if parseErr != nil {
+		err = parseErr
 		return
 	}
-	p = append(p, p1)
+	param = append(param, p1)
 	if len(params.List) == 2 {
-		p2, parse2Err := parseFnParam2(project, pkgPath, imports, used, params.List[1])
+		p2, parse2Err := parseFnParam2(p, pkgPath, imports, used, params.List[1])
 		if parse2Err != nil {
+			err = parse2Err
 			return
 		}
-		p = append(p, p2)
+		param = append(param, p2)
 	}
 	return
 }
