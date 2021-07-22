@@ -22,42 +22,45 @@ import (
 	"reflect"
 )
 
-func parseFnParams(project *Project, imports []Import, used map[string]Import, params *ast.FieldList) (p1 FuncItem, p2 FuncItem, err error) {
-	if params == nil || len(params.List) != 2 {
-		err = fmt.Errorf("parse params is invalied, must has two params, first is fns.FnContext, secend is a struct typed")
+func parseFnParams(project *Project, imports []Import, used map[string]Import, params *ast.FieldList) (p []FuncItem, err error) {
+	if params == nil || len(params.List) < 2 || len(params.List) > 2 {
+		err = fmt.Errorf("parse params is invalied, must has two params, first is fns.FnContext, secend maybe a struct typed")
 		return
 	}
-	//used = make(map[string]Import)
-	p1, err = parseFnParam1(project, imports, used, params.List[0])
-	if err != nil {
+	p1, parseErr := parseFnParam1(project, imports, used, params.List[0])
+	if parseErr != nil {
 		return
 	}
-	p2, err = parseFnParam2(project, imports, used, params.List[1])
-	if err != nil {
-		return
+	p = append(p, p1)
+	if len(params.List) == 2 {
+		p2, parse2Err := parseFnParam2(project, imports, used, params.List[1])
+		if parse2Err != nil {
+			return
+		}
+		p = append(p, p2)
 	}
 	return
 }
 
 func parseFnParam1(project *Project, imports []Import, used map[string]Import, param *ast.Field) (p FuncItem, err error) {
 	if param == nil {
-		err = fmt.Errorf("parse first param failed, it is nil")
+		err = fmt.Errorf("parse first param failed, first must be fns.FnContext")
 		return
 	}
 	if param.Names == nil || len(param.Names) != 1 {
-		err = fmt.Errorf("parse first param failed,first is fns.FnContext, secend is a struct typed")
+		err = fmt.Errorf("parse first param failed, first is fns.FnContext")
 		return
 	}
 	p.Name = param.Names[0].Name
 	fpTypeExpr, fpTypeExprOk := param.Type.(*ast.SelectorExpr)
 	if !fpTypeExprOk {
-		err = fmt.Errorf("parse first param failed,first is fns.FnContext, secend is a struct typed")
+		err = fmt.Errorf("parse first param failed, first is fns.FnContext")
 		return
 	}
 	fpTypeStructName := fpTypeExpr.Sel.Name
 	fpTypePkgExpr, fpTypePkgExprOk := fpTypeExpr.X.(*ast.Ident)
 	if !fpTypePkgExprOk {
-		err = fmt.Errorf("parse first param failed,first is fns.FnContext, secend is a struct typed")
+		err = fmt.Errorf("parse first param failed, first is fns.FnContext")
 		return
 	}
 	fpTypeStructPkg := fpTypePkgExpr.Name
@@ -65,7 +68,7 @@ func parseFnParam1(project *Project, imports []Import, used map[string]Import, p
 	for _, i := range imports {
 		if i.Name == fpTypeStructPkg {
 			if i.Path != "github.com/aacfactory/fns" {
-				err = fmt.Errorf("parse first param failed, first is fns.FnContext, secend is a struct typed")
+				err = fmt.Errorf("parse first param failed, first is fns.FnContext")
 				return
 			}
 			used[i.Name] = i
@@ -73,13 +76,12 @@ func parseFnParam1(project *Project, imports []Import, used map[string]Import, p
 	}
 
 	if fpTypeStructName != "FnContext" {
-		err = fmt.Errorf("parse first param failed, first is fns.FnContext, secend is a struct typed")
+		err = fmt.Errorf("parse first param failed, first is fns.FnContext")
 		return
 	}
 
 	p.Type = Type{
 		IsContext: true,
-		Name:      "FnContext",
 		Struct: &Struct{
 			Exported: true,
 			Doc:      nil,
@@ -87,7 +89,7 @@ func parseFnParam1(project *Project, imports []Import, used map[string]Import, p
 				Path: "github.com/aacfactory/fns",
 				Name: fpTypeStructPkg,
 			},
-			Name:   "",
+			Name:   "FnContext",
 			Fields: nil,
 		},
 		InnerType: nil,
@@ -142,25 +144,17 @@ func parseFnParam2(project *Project, imports []Import, used map[string]Import, p
 			return
 		}
 		p.Type = Type{
-			IsBasic:     false,
-			IsStruct:    false,
-			IsInterface: false,
-			IsPtr:       true,
-			IsArray:     false,
-			IsMap:       false,
-			IsErr:       false,
-			Name:        "",
-			Struct:      &struct0,
-			InnerType:   nil,
+			IsPtr:  true,
+			Struct: &struct0,
 		}
 
 	case *ast.SelectorExpr:
-
+		// todo
 	case *ast.Ident:
 		expr := paramTypeExpr.(*ast.Ident)
 		obj, hasObj := project.ObjectOf(expr)
 		fmt.Println("ident:", hasObj, obj)
-
+		// todo
 	default:
 		fmt.Println("p2, not supported", reflect.TypeOf(paramTypeExpr))
 		err = fmt.Errorf("parse first param failed, first is fns.FnContext, secend is a struct typed")

@@ -17,6 +17,7 @@
 package codegen
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"strings"
@@ -126,12 +127,12 @@ func loadFnFile(project *Project, f *ast.File) (fnFile FnFile, has bool, err err
 			fn.Doc = docs
 			fn.Imports = make(map[string]Import)
 			// params
-			p1, p2, paramsErr := parseFnParams(project, fnFile.Imports, fn.Imports, funcDecl.Type.Params)
+			p, paramsErr := parseFnParams(project, fnFile.Imports, fn.Imports, funcDecl.Type.Params)
 			if paramsErr != nil {
 				err = fmt.Errorf("%s:%s, %v", filename, fn.Name, paramsErr)
 				return
 			}
-			fn.In = append(fn.In, p1, p2)
+			fn.In = p
 
 			// results
 
@@ -210,6 +211,11 @@ type Type struct {
 	Name        string  `json:"name,omitempty"`
 	Struct      *Struct `json:"struct,omitempty"`
 	InnerType   *Type   `json:"innerType,omitempty"`
+}
+
+func (t Type) String() string {
+	b, _ := json.Marshal(t)
+	return string(b)
 }
 
 type Struct struct {

@@ -138,7 +138,6 @@ func (p *Project) parseStructFromTypeSpec(file *ast.File, spec *ast.TypeSpec) (s
 	if expr.Fields != nil && expr.Fields.NumFields() > 0 {
 		for i := 0; i < expr.Fields.NumFields(); i++ {
 			field := expr.Fields.List[i]
-			// joined
 			if field.Names == nil || len(field.Names) != 1 {
 				switch field.Type.(type) {
 				case *ast.Ident:

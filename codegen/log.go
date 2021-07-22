@@ -30,6 +30,7 @@ func CreateLog(debug bool) {
 		Formatter:        logs.LogConsoleFormatter,
 		ActiveLevel:      level,
 		Colorable:        true,
+		EnableCaller:     true,
 		EnableStacktrace: false,
 	})
 }
