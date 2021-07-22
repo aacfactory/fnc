@@ -15,3 +15,23 @@
  */
 
 package codegen
+
+import "encoding/json"
+
+type Type struct {
+	IsContext   bool   `json:"isContext,omitempty"`
+	IsBasic     bool   `json:"isBasic,omitempty"`
+	IsStruct    bool   `json:"isStruct,omitempty"`
+	IsInterface bool   `json:"isInterface,omitempty"`
+	IsPtr       bool   `json:"isPtr,omitempty"`
+	IsArray     bool   `json:"isArray,omitempty"`
+	IsMap       bool   `json:"isMap,omitempty"`
+	IsErr       bool   `json:"isErr,omitempty"`
+	Name        string `json:"name,omitempty"`
+	InnerTypes  []Type `json:"innerType,omitempty"`
+}
+
+func (t Type) String() string {
+	b, _ := json.Marshal(t)
+	return string(b)
+}

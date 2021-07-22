@@ -17,60 +17,88 @@
 package codegen
 
 import (
-	"go/ast"
-	"go/types"
+	"fmt"
+	"strings"
 )
 
-func parseStruct(spec *ast.TypeSpec) (str Struct, ok bool) {
-	specType, typeOk := spec.Type.(*ast.StructType)
-	if !typeOk {
+type Struct struct {
+	Exported bool     `json:"exported,omitempty"`
+	Doc      []string `json:"doc,omitempty"`
+	Package  Import   `json:"package,omitempty"`
+	Name     string   `json:"name,omitempty"`
+	Fields   []Field  `json:"fields,omitempty"`
+}
+
+func (s Struct) String() string {
+	return fmt.Sprintf("[%v][%s.%s][%d]", s.Exported, s.Package.Path, s.Name, len(s.Fields))
+}
+
+func (s *Struct) PutField(field Field) {
+	if s.Fields == nil {
+		s.Fields = make([]Field, 0, 1)
+	}
+	has := false
+	for _, f := range s.Fields {
+		if f.Name == field.Name {
+			has = true
+			break
+		}
+	}
+	if !has {
+		s.Fields = append(s.Fields, field)
+	}
+}
+
+type Field struct {
+	Exported bool       `json:"exported,omitempty"`
+	Doc      []string   `json:"doc,omitempty"`
+	Name     string     `json:"name,omitempty"`
+	Type     Type       `json:"type,omitempty"`
+	Tags     []FieldTag `json:"tags,omitempty"`
+}
+
+func NewFieldTags(v string) (tags []FieldTag, ok bool) {
+	v = strings.TrimSpace(v)
+	if v == "" {
 		return
 	}
-
-	if specType.Fields == nil || specType.Fields.NumFields() == 0 {
-		return
-	}
-
-	fields := make([]Field, 0, 1)
-	for _, field := range specType.Fields.List {
-		if field.Names == nil || len(field.Names) != 1 {
+	idx := strings.IndexByte(v, ':')
+	if idx > 0 {
+		name := v[0:idx]
+		sub := v[idx+1:]
+		l := strings.IndexByte(sub, '"')
+		if l < 0 {
 			return
 		}
-		sf, sfOk := parseStructField(field)
-		if sfOk {
-			fields = append(fields, sf)
+		r := strings.IndexByte(sub[l+1:], '"')
+		if r < 0 {
+			return
 		}
-	}
-
-	name := spec.Name.String()
-	exported := ast.IsExported(name)
-	doc := make([]string, 0, 1)
-	if spec.Doc != nil && spec.Doc.List != nil {
-		for _, comment := range spec.Doc.List {
-			doc = append(doc, comment.Text)
+		values := strings.Split(sub[l+1:r+1], ",")
+		tag := FieldTag{
+			Name:   name,
+			Values: make([]string, 0, 1),
 		}
-	}
-	str = Struct{
-		Exported: exported,
-		Doc:      doc,
-		Name:     name,
-		Fields:   fields,
+		for _, value := range values {
+			value = strings.TrimSpace(value)
+			if value != "" {
+				tag.Values = append(tag.Values, value)
+			}
+		}
+		tags = append(tags, tag)
+		if len(sub) > r+2 {
+			subTags, subTagsOk := NewFieldTags(sub[r+2:])
+			if subTagsOk {
+				tags = append(tags, subTags...)
+			}
+		}
 	}
 
 	ok = true
 	return
 }
 
-func loadStructFromType(typ types.Type) (s *Struct, ok bool) {
-	st, typeOk := typ.(*types.Struct)
-	if !typeOk {
-		return
-	}
-
-	for i := 0; i < st.NumFields(); i++ {
-		field := st.Field(i)
-		field.Type()
-	}
-
-	return
+type FieldTag struct {
+	Name   string   `json:"name,omitempty"`
+	Values []string `json:"values,omitempty"`
 }

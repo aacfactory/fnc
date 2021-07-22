@@ -17,23 +17,21 @@
 package codegen
 
 import (
-	"encoding/json"
 	"fmt"
 	"go/ast"
 	"strings"
 )
 
-func LoadFn(project *Project) (fnFiles []FnFile, err error) {
-
-	for _, info := range project.Program.Created {
+func (p *Project) LoadFn() (err error) {
+	for _, info := range p.Program.Created {
 		for _, file := range info.Files {
-			fnFile, has, fileErr := loadFnFile(project, file)
+			fnFile, has, fileErr := loadFnFile(p, file)
 			if fileErr != nil {
 				err = fmt.Errorf("load fn file failed, %v", fileErr)
 				return
 			}
 			if has {
-				fnFiles = append(fnFiles, fnFile)
+				p.Fns = append(p.Fns, fnFile)
 			}
 		}
 	}
@@ -52,12 +50,8 @@ func loadFnFile(project *Project, f *ast.File) (fnFile FnFile, has bool, err err
 	// path
 	fnFile.Path = filename
 	// file doc
-	fnFile.Doc = make([]string, 0, 1)
-	if f.Doc != nil && f.Doc.List != nil {
-		for _, line := range f.Doc.List {
-			fnFile.Doc = append(fnFile.Doc, line.Text)
-		}
-	}
+	fnFile.Doc = parseDoc(f.Doc.Text())
+
 	// Package
 	pkgPath, _, hasPkg := project.PackageOfFile(f)
 	if !hasPkg {
@@ -90,20 +84,14 @@ func loadFnFile(project *Project, f *ast.File) (fnFile FnFile, has bool, err err
 			fn.Name = funcDecl.Name.Name
 			fn.Exported = ast.IsExported(fn.Name)
 			// doc
-			comments := funcDecl.Doc.List
-			if comments == nil || len(comments) == 0 {
-				continue
-			}
+			fn.Doc = parseDoc(funcDecl.Doc.Text())
 			address := ""
 			proxy := make([]string, 0, 1)
-			docs := make([]string, 0, 1)
 			openAPIContent := ""
-			for _, comment := range comments {
-				if comment == nil {
+			for _, line := range fn.Doc {
+				if line == "" {
 					continue
 				}
-				line := comment.Text
-				docs = append(docs, line)
 				if strings.Contains(line, "@Fn") {
 					address = strings.TrimSpace(line[strings.Index(line, "@Fn")+4:])
 					continue
@@ -124,7 +112,6 @@ func loadFnFile(project *Project, f *ast.File) (fnFile FnFile, has bool, err err
 			fn.Proxy = proxy
 			fn.OpenAPI = openAPIContent
 
-			fn.Doc = docs
 			fn.Imports = make(map[string]Import)
 			// params
 			p, paramsErr := parseFnParams(project, fnFile.Package, fnFile.Imports, fn.Imports, funcDecl.Type.Params)
@@ -200,102 +187,5 @@ type Fn struct {
 }
 
 func (fn Fn) String() string {
-	return fmt.Sprintf("[%s] %s in(%d) out(%d)", fn.Address, fn.Name, len(fn.In), len(fn.Out))
-}
-
-type Type struct {
-	IsContext   bool    `json:"isContext,omitempty"`
-	IsBasic     bool    `json:"isBasic,omitempty"`
-	IsStruct    bool    `json:"isStruct,omitempty"`
-	IsInterface bool    `json:"isInterface,omitempty"`
-	IsPtr       bool    `json:"isPtr,omitempty"`
-	IsArray     bool    `json:"isArray,omitempty"`
-	IsMap       bool    `json:"isMap,omitempty"`
-	IsErr       bool    `json:"isErr,omitempty"`
-	Name        string  `json:"name,omitempty"`
-	Struct      *Struct `json:"struct,omitempty"`
-	InnerType   *Type   `json:"innerType,omitempty"`
-}
-
-func (t Type) String() string {
-	b, _ := json.Marshal(t)
-	return string(b)
-}
-
-type Struct struct {
-	Exported bool     `json:"exported,omitempty"`
-	Doc      []string `json:"doc,omitempty"`
-	Package  Import   `json:"package,omitempty"`
-	Name     string   `json:"name,omitempty"`
-	Fields   []Field  `json:"fields,omitempty"`
-}
-
-func (s *Struct) PutField(field Field) {
-	if s.Fields == nil {
-		s.Fields = make([]Field, 0, 1)
-	}
-	has := false
-	for _, f := range s.Fields {
-		if f.Name == field.Name {
-			has = true
-			break
-		}
-	}
-	if !has {
-		s.Fields = append(s.Fields, field)
-	}
-}
-
-type Field struct {
-	Exported bool       `json:"exported,omitempty"`
-	Doc      []string   `json:"doc,omitempty"`
-	Name     string     `json:"name,omitempty"`
-	Type     Type       `json:"type,omitempty"`
-	Tags     []FieldTag `json:"tags,omitempty"`
-}
-
-func NewFieldTags(v string) (tags []FieldTag, ok bool) {
-	v = strings.TrimSpace(v)
-	if v == "" {
-		return
-	}
-	idx := strings.IndexByte(v, ':')
-	if idx > 0 {
-		name := v[0:idx]
-		sub := v[idx+1:]
-		l := strings.IndexByte(sub, '"')
-		if l < 0 {
-			return
-		}
-		r := strings.IndexByte(sub[l+1:], '"')
-		if r < 0 {
-			return
-		}
-		values := strings.Split(sub[l+1:r+1], ",")
-		tag := FieldTag{
-			Name:   name,
-			Values: make([]string, 0, 1),
-		}
-		for _, value := range values {
-			value = strings.TrimSpace(value)
-			if value != "" {
-				tag.Values = append(tag.Values, value)
-			}
-		}
-		tags = append(tags, tag)
-		if len(sub) > r+2 {
-			subTags, subTagsOk := NewFieldTags(sub[r+2:])
-			if subTagsOk {
-				tags = append(tags, subTags...)
-			}
-		}
-	}
-
-	ok = true
-	return
-}
-
-type FieldTag struct {
-	Name   string   `json:"name,omitempty"`
-	Values []string `json:"values,omitempty"`
+	return fmt.Sprintf("[%s][%s][in(%d)][out(%d)]", fn.Address, fn.Name, len(fn.In), len(fn.Out))
 }

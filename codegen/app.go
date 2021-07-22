@@ -17,6 +17,7 @@
 package codegen
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 )
@@ -35,17 +36,24 @@ func Generate(path string, plugins []string) (err error) {
 		return
 	}
 
-	fnFiles, loadFnErr := LoadFn(project)
+	loadFnErr := project.LoadFn()
 	if loadFnErr != nil {
 		Log().Errorf("load @Fn in project %s failed, %v", path, loadFnErr)
 		return
 	}
 
-	for _, fnFile := range fnFiles {
+	for _, fnFile := range project.Fns {
 		for _, fn := range fnFile.Functions {
-			Log().Debugf("fnc load fn: %s %s", fnFile.Path, fn)
+			Log().Debugf("fnc load fn: [%s]%s", fnFile.Path, fn)
 		}
 	}
 
+	projectContent, encodeErr := json.Marshal(project)
+	if encodeErr != nil {
+		err = encodeErr
+		return
+	}
+
+	fmt.Println(string(projectContent))
 	return
 }

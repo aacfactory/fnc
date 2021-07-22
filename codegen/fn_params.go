@@ -82,17 +82,7 @@ func parseFnParam1(imports []Import, used map[string]Import, param *ast.Field) (
 
 	p.Type = Type{
 		IsContext: true,
-		Struct: &Struct{
-			Exported: true,
-			Doc:      nil,
-			Package: Import{
-				Path: "github.com/aacfactory/fns",
-				Name: fpTypeStructPkg,
-			},
-			Name:   "FnContext",
-			Fields: nil,
-		},
-		InnerType: nil,
+		Name:      "github.com/aacfactory/fns.FnContext",
 	}
 
 	return
@@ -138,14 +128,14 @@ func parseFnParam2(project *Project, pkgPath string, imports []Import, used map[
 			used[packageName] = import0
 		}
 
-		struct0, hasStruct := project.FindStruct(import0.Path, structName)
+		fullName, _, hasStruct := project.FindStruct(import0.Path, structName)
 		if !hasStruct {
 			err = fmt.Errorf("parse first param failed, first is fns.FnContext, secend is a struct typed")
 			return
 		}
 		p.Type = Type{
-			IsPtr:  true,
-			Struct: &struct0,
+			IsPtr: true,
+			Name:  fullName,
 		}
 
 	case *ast.SelectorExpr:
@@ -170,14 +160,13 @@ func parseFnParam2(project *Project, pkgPath string, imports []Import, used map[
 			return
 		}
 
-		fieldStruct, defined := project.FindStruct(fieldPkgPath, structName)
+		fullName, _, defined := project.FindStruct(fieldPkgPath, structName)
 		if !defined {
 			return
 		}
 		p.Type = Type{
-			IsStruct:  true,
-			Struct:    &fieldStruct,
-			InnerType: nil,
+			IsStruct: true,
+			Name:     fullName,
 		}
 	case *ast.Ident:
 		// 同文件
@@ -186,14 +175,14 @@ func parseFnParam2(project *Project, pkgPath string, imports []Import, used map[
 			err = fmt.Errorf("parse first param failed, first is fns.FnContext, secend is a struct typed")
 			return
 		}
-		str, loaded := project.FindStruct(pkgPath, expr.Name)
+		fullName, _, loaded := project.FindStruct(pkgPath, expr.Name)
 		if !loaded {
 			return
 		}
 
 		p.Type = Type{
 			IsStruct: true,
-			Struct:   &str,
+			Name:     fullName,
 		}
 	default:
 		fmt.Println("p2, not supported", reflect.TypeOf(paramTypeExpr))

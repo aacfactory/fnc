@@ -18,10 +18,9 @@ package codegen
 
 import (
 	"go/ast"
-	"strings"
 )
 
-func (p *Project) parseStructFieldFromStructType(file *ast.File, field *ast.Field) (f Field, ok bool) {
+func (p *Project) parseStructField(file *ast.File, field *ast.Field) (f Field, ok bool) {
 
 	pkgPath, _, hasPkgPath := p.PackageOfFile(file)
 	if !hasPkgPath {
@@ -31,14 +30,8 @@ func (p *Project) parseStructFieldFromStructType(file *ast.File, field *ast.Fiel
 
 	f.Name = field.Names[0].Name
 	f.Exported = ast.IsExported(f.Name)
-	if field.Doc != nil && field.Doc.List != nil {
-		for _, line := range field.Doc.List {
-			comment := strings.TrimSpace(line.Text)
-			if comment != "" {
-				f.Doc = append(f.Doc, comment)
-			}
-		}
-	}
+	f.Doc = parseDoc(field.Doc.Text())
+
 	if field.Tag != nil {
 		tags, hasTags := NewFieldTags(field.Tag.Value)
 		if hasTags {
@@ -51,13 +44,13 @@ func (p *Project) parseStructFieldFromStructType(file *ast.File, field *ast.Fiel
 		expr := field.Type.(*ast.Ident)
 		if expr.Obj != nil {
 			// 同一个文件
-			str, loaded := p.FindStruct(pkgPath, expr.Name)
+			fullName, _, loaded := p.FindStruct(pkgPath, expr.Name)
 			if !loaded {
 				return
 			}
 			f.Type = Type{
 				IsStruct: true,
-				Struct:   &str,
+				Name:     fullName,
 			}
 		} else {
 			// 基础内置类型
@@ -89,14 +82,13 @@ func (p *Project) parseStructFieldFromStructType(file *ast.File, field *ast.Fiel
 			return
 		}
 
-		fieldStruct, defined := p.FindStruct(fieldPkgPath, structName)
+		fullName, _, defined := p.FindStruct(fieldPkgPath, structName)
 		if !defined {
 			return
 		}
 		f.Type = Type{
-			IsStruct:  true,
-			Struct:    &fieldStruct,
-			InnerType: nil,
+			IsStruct: true,
+			Name:     fullName,
 		}
 
 		ok = true
@@ -106,13 +98,13 @@ func (p *Project) parseStructFieldFromStructType(file *ast.File, field *ast.Fiel
 		switch expr.X.(type) {
 		case *ast.Ident:
 			ident := expr.X.(*ast.Ident)
-			str, loaded := p.FindStruct(pkgPath, ident.Name)
+			fullName, _, loaded := p.FindStruct(pkgPath, ident.Name)
 			if !loaded {
 				return
 			}
 			f.Type = Type{
-				IsPtr:  true,
-				Struct: &str,
+				IsPtr: true,
+				Name:  fullName,
 			}
 		case *ast.SelectorExpr:
 			sExpr := expr.X.(*ast.SelectorExpr)
@@ -134,19 +126,19 @@ func (p *Project) parseStructFieldFromStructType(file *ast.File, field *ast.Fiel
 				return
 			}
 
-			fieldStruct, defined := p.FindStruct(fieldPkgPath, structName)
+			fullName, _, defined := p.FindStruct(fieldPkgPath, structName)
 			if !defined {
 				return
 			}
 			f.Type = Type{
-				IsPtr:  true,
-				Struct: &fieldStruct,
+				IsPtr: true,
+				Name:  fullName,
 			}
 		}
 		ok = true
 	case *ast.ArrayType:
 		expr := field.Type.(*ast.ArrayType)
-		typ, typeOk := parseStructArrayFieldType(p, pkgPath, imports, expr.Elt)
+		typ, typeOk := p.parseStructFieldArrayType(pkgPath, imports, expr.Elt)
 		if typeOk {
 			f.Type = typ
 			ok = true
@@ -161,30 +153,34 @@ func (p *Project) parseStructFieldFromStructType(file *ast.File, field *ast.Fiel
 	return
 }
 
-func parseStructArrayFieldType(p *Project, pkgPath string, imports []Import, expr ast.Expr) (typ Type, ok bool) {
+func (p *Project) parseStructFieldArrayType(pkgPath string, imports []Import, expr ast.Expr) (typ Type, ok bool) {
 	switch expr.(type) {
 	case *ast.Ident:
 		xExpr := expr.(*ast.Ident)
 		if xExpr.Obj != nil {
 			// 同一个文件
-			str, loaded := p.FindStruct(pkgPath, xExpr.Name)
+			fullName, _, loaded := p.FindStruct(pkgPath, xExpr.Name)
 			if !loaded {
 				return
 			}
 			typ = Type{
 				IsArray: true,
-				InnerType: &Type{
-					IsStruct: true,
-					Struct:   &str,
+				InnerTypes: []Type{
+					{
+						IsStruct: true,
+						Name:     fullName,
+					},
 				},
 			}
 		} else {
 			// 基础内置类型
 			typ = Type{
 				IsArray: true,
-				InnerType: &Type{
-					IsBasic: true,
-					Name:    xExpr.Name,
+				InnerTypes: []Type{
+					{
+						IsBasic: true,
+						Name:    xExpr.Name,
+					},
 				},
 			}
 		}
@@ -210,16 +206,17 @@ func parseStructArrayFieldType(p *Project, pkgPath string, imports []Import, exp
 			return
 		}
 
-		fieldStruct, defined := p.FindStruct(fieldPkgPath, structName)
+		fullName, _, defined := p.FindStruct(fieldPkgPath, structName)
 		if !defined {
 			return
 		}
 		typ = Type{
 			IsArray: true,
-			InnerType: &Type{
-				IsStruct:  true,
-				Struct:    &fieldStruct,
-				InnerType: nil,
+			InnerTypes: []Type{
+				{
+					IsStruct: true,
+					Name:     fullName,
+				},
 			},
 		}
 		ok = true
@@ -228,15 +225,17 @@ func parseStructArrayFieldType(p *Project, pkgPath string, imports []Import, exp
 		switch xExpr.X.(type) {
 		case *ast.Ident:
 			ident := xExpr.X.(*ast.Ident)
-			str, loaded := p.FindStruct(pkgPath, ident.Name)
+			fullName, _, loaded := p.FindStruct(pkgPath, ident.Name)
 			if !loaded {
 				return
 			}
 			typ = Type{
 				IsArray: true,
-				InnerType: &Type{
-					IsPtr:  true,
-					Struct: &str,
+				InnerTypes: []Type{
+					{
+						IsPtr: true,
+						Name:  fullName,
+					},
 				},
 			}
 			ok = true
@@ -260,26 +259,30 @@ func parseStructArrayFieldType(p *Project, pkgPath string, imports []Import, exp
 				return
 			}
 
-			fieldStruct, defined := p.FindStruct(fieldPkgPath, structName)
+			fullName, _, defined := p.FindStruct(fieldPkgPath, structName)
 			if !defined {
 				return
 			}
 			typ = Type{
 				IsArray: true,
-				InnerType: &Type{
-					IsPtr:  true,
-					Struct: &fieldStruct,
+				InnerTypes: []Type{
+					{
+						IsPtr: true,
+						Name:  fullName,
+					},
 				},
 			}
 			ok = true
 		}
 	case *ast.ArrayType:
 		xExpr := expr.(*ast.ArrayType)
-		typ0, subOk := parseStructArrayFieldType(p, pkgPath, imports, xExpr.Elt)
+		typ0, subOk := p.parseStructFieldArrayType(pkgPath, imports, xExpr.Elt)
 		if subOk {
 			typ = Type{
-				IsArray:   true,
-				InnerType: &typ0,
+				IsArray: true,
+				InnerTypes: []Type{
+					typ0,
+				},
 			}
 			ok = true
 		}

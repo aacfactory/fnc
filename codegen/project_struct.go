@@ -17,52 +17,53 @@
 package codegen
 
 import (
-	"container/list"
 	"fmt"
 	"go/ast"
-	"strings"
 )
 
-type StructFindStack struct {
-	structs *list.List
-}
-
-func NewStructFindStack() *StructFindStack {
-	structs := list.New()
-	return &StructFindStack{structs}
-}
-
-func (stack *StructFindStack) Push(fullName string) {
-	stack.structs.PushBack(fullName)
-}
-
-func (stack *StructFindStack) Pop() (fullName string) {
-	e := stack.structs.Back()
-	if e != nil {
-		stack.structs.Remove(e)
-		return e.Value.(string)
+func (p *Project) FindStruct(pkgPath string, name string) (fullName string, str Struct, has bool) {
+	fullName = fmt.Sprintf("%s.%s", pkgPath, name)
+	str, has = p.Structs[fullName]
+	if has {
+		return
 	}
-	return ""
-}
-
-func (stack *StructFindStack) Peak() (fullName string) {
-	e := stack.structs.Back()
-	if e != nil {
-		return e.Value.(string)
+	if pkgPath == "time" {
+		fullName = "time.Time"
+		has = true
+		return
+	}
+	if pkgPath == "encoding/json" {
+		if name == "RawMessage" {
+			fullName = "encoding/json.RawMessage"
+			has = true
+		}
+		return
+	}
+	processing := p.tmpStructMap[fullName]
+	if processing {
+		has = true
+		return
 	}
 
-	return ""
+	p.tmpStructMap[fullName] = true
+	defer delete(p.tmpStructMap, fullName)
+
+	spec, doc, file, hasSpec := p.getStructSpecType(pkgPath, name)
+	if !hasSpec {
+		return
+	}
+	str0, ok := p.getStructFromTypeSpec(file, spec, doc)
+	if !ok {
+		return
+	}
+	str = str0
+	has = true
+	p.Structs[fullName] = str0
+	Log().Debugf("fnc load struct type: %v", str)
+	return
 }
 
-func (stack *StructFindStack) Len() int {
-	return stack.structs.Len()
-}
-
-func (stack *StructFindStack) Empty() bool {
-	return stack.structs.Len() == 0
-}
-
-func (p *Project) FindStructSpecType(pkgPath string, name string) (spec *ast.TypeSpec, fileOfSpec *ast.File, has bool) {
+func (p *Project) getStructSpecType(pkgPath string, name string) (spec *ast.TypeSpec, doc string, fileOfSpec *ast.File, has bool) {
 	pkg := p.Program.Package(pkgPath)
 	if pkg == nil {
 		for _, program := range p.ImportPrograms {
@@ -86,6 +87,7 @@ func (p *Project) FindStructSpecType(pkgPath string, name string) (spec *ast.Typ
 				continue
 			}
 			if typeSpec.Name.Name == name {
+				doc = genDecl.Doc.Text()
 				fileOfSpec = file
 				spec = typeSpec
 				has = true
@@ -96,64 +98,7 @@ func (p *Project) FindStructSpecType(pkgPath string, name string) (spec *ast.Typ
 	return
 }
 
-func (p *Project) FindStruct(pkgPath string, name string) (str Struct, has bool) {
-	key := fmt.Sprintf("%s.%s", pkgPath, name)
-	str, has = p.Structs[key]
-	if has {
-		return
-	}
-	if pkgPath == "time" {
-		str = Struct{
-			Exported: true,
-			Doc:      nil,
-			Package: Import{
-				Path: "time",
-				Name: "time",
-			},
-			Name:   name,
-			Fields: nil,
-		}
-		has = true
-		return
-	}
-	if pkgPath == "encoding/json" {
-		if name == "RawMessage" {
-			str = Struct{
-				Exported: true,
-				Doc:      nil,
-				Package: Import{
-					Path: "encoding/json",
-					Name: "json",
-				},
-				Name:   "RawMessage",
-				Fields: nil,
-			}
-			has = true
-		}
-		return
-	}
-	prev := p.structFindStack.Peak()
-	if prev == key {
-		return
-	}
-	p.structFindStack.Push(key)
-	defer p.structFindStack.Pop()
-	spec, file, hasSpec := p.FindStructSpecType(pkgPath, name)
-	if !hasSpec {
-		return
-	}
-	str0, ok := p.parseStructFromTypeSpec(file, spec)
-	if !ok {
-		return
-	}
-	str = str0
-	has = true
-	p.Structs[key] = str
-	Log().Debugf("fnc load struct type: %s %s", str.Package.Path, str.Name)
-	return
-}
-
-func (p *Project) parseStructFromTypeSpec(file *ast.File, spec *ast.TypeSpec) (str Struct, ok bool) {
+func (p *Project) getStructFromTypeSpec(file *ast.File, spec *ast.TypeSpec, doc string) (str Struct, ok bool) {
 	pkgPath, pkgName, hasPkgPath := p.PackageOfFile(file)
 	if !hasPkgPath {
 		return
@@ -171,17 +116,8 @@ func (p *Project) parseStructFromTypeSpec(file *ast.File, spec *ast.TypeSpec) (s
 		Name: pkgName,
 	}
 	str.Exported = ast.IsExported(str.Name)
-	if spec.Doc != nil {
-		comments := spec.Doc.List
-		if comments != nil {
-			for _, comment := range comments {
-				content := strings.TrimSpace(comment.Text)
-				if content != "" {
-					str.Doc = append(str.Doc, content)
-				}
-			}
-		}
-	}
+	str.Doc = parseDoc(doc)
+
 	if expr.Fields != nil && expr.Fields.NumFields() > 0 {
 		for i := 0; i < expr.Fields.NumFields(); i++ {
 			field := expr.Fields.List[i]
@@ -189,7 +125,7 @@ func (p *Project) parseStructFromTypeSpec(file *ast.File, spec *ast.TypeSpec) (s
 				switch field.Type.(type) {
 				case *ast.Ident:
 					joinExpr := field.Type.(*ast.Ident)
-					joined, hasJoined := p.FindStruct(pkgPath, joinExpr.Name)
+					_, joined, hasJoined := p.FindStruct(pkgPath, joinExpr.Name)
 					if hasJoined {
 						for _, f := range joined.Fields {
 							str.PutField(f)
@@ -215,7 +151,7 @@ func (p *Project) parseStructFromTypeSpec(file *ast.File, spec *ast.TypeSpec) (s
 						continue
 					}
 
-					fieldStruct, defined := p.FindStruct(fieldPkgPath, structName)
+					_, fieldStruct, defined := p.FindStruct(fieldPkgPath, structName)
 					if defined {
 						for _, f := range fieldStruct.Fields {
 							str.PutField(f)
@@ -225,7 +161,7 @@ func (p *Project) parseStructFromTypeSpec(file *ast.File, spec *ast.TypeSpec) (s
 					continue
 				}
 			} else {
-				fd, fieldOk := p.parseStructFieldFromStructType(file, field)
+				fd, fieldOk := p.parseStructField(file, field)
 				if fieldOk {
 					str.PutField(fd)
 				}
