@@ -120,12 +120,13 @@ func LoadProject(path string) (p *Project, err error) {
 	}
 
 	p = &Project{
-		Path:           path,
-		Module:         mod,
-		Program:        program,
-		ImportPrograms: importPrograms,
-		Fns:            make([]FnFile, 0, 1),
-		Structs:        make(map[string]Struct),
+		Path:            path,
+		Module:          mod,
+		Program:         program,
+		ImportPrograms:  importPrograms,
+		Fns:             make([]FnFile, 0, 1),
+		Structs:         make(map[string]Struct),
+		structFindStack: NewStructFindStack(),
 	}
 
 	return
@@ -139,7 +140,8 @@ type Project struct {
 	Fns            []FnFile                   `json:"fns,omitempty"`
 	// Structs
 	// key = package(path).StructName
-	Structs map[string]Struct `json:"structs,omitempty"`
+	Structs         map[string]Struct `json:"structs,omitempty"`
+	structFindStack *StructFindStack
 }
 
 func (p *Project) FindObject(pkgName string, name string) (obj types.Object, has bool) {

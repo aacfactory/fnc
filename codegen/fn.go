@@ -127,7 +127,7 @@ func loadFnFile(project *Project, f *ast.File) (fnFile FnFile, has bool, err err
 			fn.Doc = docs
 			fn.Imports = make(map[string]Import)
 			// params
-			p, paramsErr := parseFnParams(project, fnFile.Imports, fn.Imports, funcDecl.Type.Params)
+			p, paramsErr := parseFnParams(project, fnFile.Package, fnFile.Imports, fn.Imports, funcDecl.Type.Params)
 			if paramsErr != nil {
 				err = fmt.Errorf("%s:%s, %v", filename, fn.Name, paramsErr)
 				return
@@ -197,6 +197,10 @@ type Fn struct {
 	Name    string            `json:"name,omitempty"`
 	In      []FuncItem        `json:"in,omitempty"`
 	Out     []FuncItem        `json:"out,omitempty"`
+}
+
+func (fn Fn) String() string {
+	return fmt.Sprintf("[%s] %s in(%d) out(%d)", fn.Address, fn.Name, len(fn.In), len(fn.Out))
 }
 
 type Type struct {

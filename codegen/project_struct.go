@@ -17,10 +17,50 @@
 package codegen
 
 import (
+	"container/list"
 	"fmt"
 	"go/ast"
 	"strings"
 )
+
+type StructFindStack struct {
+	structs *list.List
+}
+
+func NewStructFindStack() *StructFindStack {
+	structs := list.New()
+	return &StructFindStack{structs}
+}
+
+func (stack *StructFindStack) Push(fullName string) {
+	stack.structs.PushBack(fullName)
+}
+
+func (stack *StructFindStack) Pop() (fullName string) {
+	e := stack.structs.Back()
+	if e != nil {
+		stack.structs.Remove(e)
+		return e.Value.(string)
+	}
+	return ""
+}
+
+func (stack *StructFindStack) Peak() (fullName string) {
+	e := stack.structs.Back()
+	if e != nil {
+		return e.Value.(string)
+	}
+
+	return ""
+}
+
+func (stack *StructFindStack) Len() int {
+	return stack.structs.Len()
+}
+
+func (stack *StructFindStack) Empty() bool {
+	return stack.structs.Len() == 0
+}
 
 func (p *Project) FindStructSpecType(pkgPath string, name string) (spec *ast.TypeSpec, fileOfSpec *ast.File, has bool) {
 	pkg := p.Program.Package(pkgPath)
@@ -57,7 +97,8 @@ func (p *Project) FindStructSpecType(pkgPath string, name string) (spec *ast.Typ
 }
 
 func (p *Project) FindStruct(pkgPath string, name string) (str Struct, has bool) {
-	str, has = p.Structs[fmt.Sprintf("%s.%s", pkgPath, name)]
+	key := fmt.Sprintf("%s.%s", pkgPath, name)
+	str, has = p.Structs[key]
 	if has {
 		return
 	}
@@ -91,6 +132,12 @@ func (p *Project) FindStruct(pkgPath string, name string) (str Struct, has bool)
 		}
 		return
 	}
+	prev := p.structFindStack.Peak()
+	if prev == key {
+		return
+	}
+	p.structFindStack.Push(key)
+	defer p.structFindStack.Pop()
 	spec, file, hasSpec := p.FindStructSpecType(pkgPath, name)
 	if !hasSpec {
 		return
@@ -101,7 +148,7 @@ func (p *Project) FindStruct(pkgPath string, name string) (str Struct, has bool)
 	}
 	str = str0
 	has = true
-	p.Structs[fmt.Sprintf("%s.%s", pkgPath, name)] = str
+	p.Structs[key] = str
 	Log().Debugf("fnc load struct type: %s %s", str.Package.Path, str.Name)
 	return
 }

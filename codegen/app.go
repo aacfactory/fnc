@@ -43,7 +43,7 @@ func Generate(path string, plugins []string) (err error) {
 
 	for _, fnFile := range fnFiles {
 		for _, fn := range fnFile.Functions {
-			Log().Debugf("fnc load fn: %s %s", fnFile.Path, fn.Name)
+			Log().Debugf("fnc load fn: %s %s", fnFile.Path, fn)
 		}
 	}
 

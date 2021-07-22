@@ -22,18 +22,18 @@ import (
 	"reflect"
 )
 
-func parseFnParams(project *Project, imports []Import, used map[string]Import, params *ast.FieldList) (p []FuncItem, err error) {
+func parseFnParams(project *Project, pkgPath string, imports []Import, used map[string]Import, params *ast.FieldList) (p []FuncItem, err error) {
 	if params == nil || len(params.List) < 2 || len(params.List) > 2 {
 		err = fmt.Errorf("parse params is invalied, must has two params, first is fns.FnContext, secend maybe a struct typed")
 		return
 	}
-	p1, parseErr := parseFnParam1(project, imports, used, params.List[0])
+	p1, parseErr := parseFnParam1(imports, used, params.List[0])
 	if parseErr != nil {
 		return
 	}
 	p = append(p, p1)
 	if len(params.List) == 2 {
-		p2, parse2Err := parseFnParam2(project, imports, used, params.List[1])
+		p2, parse2Err := parseFnParam2(project, pkgPath, imports, used, params.List[1])
 		if parse2Err != nil {
 			return
 		}
@@ -42,7 +42,7 @@ func parseFnParams(project *Project, imports []Import, used map[string]Import, p
 	return
 }
 
-func parseFnParam1(project *Project, imports []Import, used map[string]Import, param *ast.Field) (p FuncItem, err error) {
+func parseFnParam1(imports []Import, used map[string]Import, param *ast.Field) (p FuncItem, err error) {
 	if param == nil {
 		err = fmt.Errorf("parse first param failed, first must be fns.FnContext")
 		return
@@ -98,7 +98,7 @@ func parseFnParam1(project *Project, imports []Import, used map[string]Import, p
 	return
 }
 
-func parseFnParam2(project *Project, imports []Import, used map[string]Import, param *ast.Field) (p FuncItem, err error) {
+func parseFnParam2(project *Project, pkgPath string, imports []Import, used map[string]Import, param *ast.Field) (p FuncItem, err error) {
 	if param == nil {
 		err = fmt.Errorf("parse second param failed, it is nil")
 		return
@@ -149,12 +149,52 @@ func parseFnParam2(project *Project, imports []Import, used map[string]Import, p
 		}
 
 	case *ast.SelectorExpr:
-		// todo
+		// 值对象
+		expr := paramTypeExpr.(*ast.SelectorExpr)
+
+		structName := expr.Sel.Name
+		ident, identOk := expr.X.(*ast.Ident)
+		if !identOk {
+			return
+		}
+
+		fieldPkgName := ident.Name
+		fieldPkgPath := ""
+		for _, import0 := range imports {
+			if import0.Name == fieldPkgName {
+				fieldPkgPath = import0.Path
+				break
+			}
+		}
+		if fieldPkgPath == "" {
+			return
+		}
+
+		fieldStruct, defined := project.FindStruct(fieldPkgPath, structName)
+		if !defined {
+			return
+		}
+		p.Type = Type{
+			IsStruct:  true,
+			Struct:    &fieldStruct,
+			InnerType: nil,
+		}
 	case *ast.Ident:
+		// 同文件
 		expr := paramTypeExpr.(*ast.Ident)
-		obj, hasObj := project.ObjectOf(expr)
-		fmt.Println("ident:", hasObj, obj)
-		// todo
+		if expr.Obj == nil {
+			err = fmt.Errorf("parse first param failed, first is fns.FnContext, secend is a struct typed")
+			return
+		}
+		str, loaded := project.FindStruct(pkgPath, expr.Name)
+		if !loaded {
+			return
+		}
+
+		p.Type = Type{
+			IsStruct: true,
+			Struct:   &str,
+		}
 	default:
 		fmt.Println("p2, not supported", reflect.TypeOf(paramTypeExpr))
 		err = fmt.Errorf("parse first param failed, first is fns.FnContext, secend is a struct typed")
