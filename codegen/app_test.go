@@ -29,6 +29,7 @@ func TestGenerate(t *testing.T) {
 
 	path := `D:\studio\workspace\go\src\github.com\aacfactory\example`
 
+	codegen.CreateLog(true)
 	codegen.Generate(path, nil)
 
 }

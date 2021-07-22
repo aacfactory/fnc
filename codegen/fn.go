@@ -58,30 +58,14 @@ func loadFnFile(project *Project, f *ast.File) (fnFile FnFile, has bool, err err
 		}
 	}
 	// Package
-	pkgName, hasPkgName := project.PackageNameOfFile(f)
-	if !hasPkgName {
+	pkgPath, _, hasPkg := project.PackageOfFile(f)
+	if !hasPkg {
 		err = fmt.Errorf("read %s failed, package name is not founed", filename)
 		return
 	}
-	fnFile.Package = pkgName
+	fnFile.Package = pkgPath
 	// imports
-	if f.Imports != nil {
-		imports := make([]Import, 0, 1)
-		for _, spec := range f.Imports {
-			path := strings.ReplaceAll(spec.Path.Value, "\"", "")
-			alias := spec.Name
-			name := path[strings.LastIndex(path, "/")+1:]
-			if alias != nil && alias.Name != "" {
-				name = alias.Name
-			}
-			import0 := Import{
-				Path: path,
-				Name: name,
-			}
-			imports = append(imports, import0)
-		}
-		fnFile.Imports = imports
-	}
+	fnFile.Imports = project.GetImports(f)
 
 	// func
 	fns := make([]Fn, 0, 1)
@@ -215,6 +199,7 @@ type Fn struct {
 }
 
 type Type struct {
+	IsContext   bool    `json:"isContext,omitempty"`
 	IsBasic     bool    `json:"isBasic,omitempty"`
 	IsStruct    bool    `json:"isStruct,omitempty"`
 	IsInterface bool    `json:"isInterface,omitempty"`
@@ -222,7 +207,6 @@ type Type struct {
 	IsArray     bool    `json:"isArray,omitempty"`
 	IsMap       bool    `json:"isMap,omitempty"`
 	IsErr       bool    `json:"isErr,omitempty"`
-	Package     Import  `json:"package,omitempty"`
 	Name        string  `json:"name,omitempty"`
 	Struct      *Struct `json:"struct,omitempty"`
 	InnerType   *Type   `json:"innerType,omitempty"`
@@ -231,8 +215,25 @@ type Type struct {
 type Struct struct {
 	Exported bool     `json:"exported,omitempty"`
 	Doc      []string `json:"doc,omitempty"`
+	Package  Import   `json:"package,omitempty"`
 	Name     string   `json:"name,omitempty"`
 	Fields   []Field  `json:"fields,omitempty"`
+}
+
+func (s *Struct) PutField(field Field) {
+	if s.Fields == nil {
+		s.Fields = make([]Field, 0, 1)
+	}
+	has := false
+	for _, f := range s.Fields {
+		if f.Name == field.Name {
+			has = true
+			break
+		}
+	}
+	if !has {
+		s.Fields = append(s.Fields, field)
+	}
 }
 
 type Field struct {
@@ -241,6 +242,47 @@ type Field struct {
 	Name     string     `json:"name,omitempty"`
 	Type     Type       `json:"type,omitempty"`
 	Tags     []FieldTag `json:"tags,omitempty"`
+}
+
+func NewFieldTags(v string) (tags []FieldTag, ok bool) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return
+	}
+	idx := strings.IndexByte(v, ':')
+	if idx > 0 {
+		name := v[0:idx]
+		sub := v[idx+1:]
+		l := strings.IndexByte(sub, '"')
+		if l < 0 {
+			return
+		}
+		r := strings.IndexByte(sub[l+1:], '"')
+		if r < 0 {
+			return
+		}
+		values := strings.Split(sub[l+1:r+1], ",")
+		tag := FieldTag{
+			Name:   name,
+			Values: make([]string, 0, 1),
+		}
+		for _, value := range values {
+			value = strings.TrimSpace(value)
+			if value != "" {
+				tag.Values = append(tag.Values, value)
+			}
+		}
+		tags = append(tags, tag)
+		if len(sub) > r+2 {
+			subTags, subTagsOk := NewFieldTags(sub[r+2:])
+			if subTagsOk {
+				tags = append(tags, subTags...)
+			}
+		}
+	}
+
+	ok = true
+	return
 }
 
 type FieldTag struct {

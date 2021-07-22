@@ -17,15 +17,13 @@
 package codegen
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/loader"
-	"io/fs"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -66,6 +64,55 @@ func LoadProject(path string) (p *Project, err error) {
 		config.CreateFromFilenames(pkg, filenames...)
 	}
 
+	importPrograms := make(map[string]*loader.Program)
+	gopath, hasGopath := os.LookupEnv("GOPATH")
+	if hasGopath {
+		modPrefix := filepath.Join(gopath, "pkg", "mod")
+		for _, require := range mod.Requires {
+			importCWD := filepath.Join(modPrefix, fmt.Sprintf("%s@%s", require.Name, require.Version))
+			if require.Replace != "" {
+				replace := require.Replace
+				if strings.Index(replace, ".") == 0 {
+					replace = filepath.Join(path, require.Replace)
+				}
+				importCWD = replace
+			}
+			configOfImport := loader.Config{
+				Cwd:         importCWD,
+				ParserMode:  parser.ParseComments,
+				AllowErrors: true,
+				TypeChecker: types.Config{
+					Error: func(err error) {
+
+					},
+				},
+			}
+			importModFiles := make(map[string][]string)
+
+			importModFilesErr := loadPackageFiles(importCWD, require.Name, importModFiles)
+			if importModFilesErr != nil {
+				err = fmt.Errorf("fnc load project failed, %v", importModFilesErr)
+				return
+			}
+
+			if len(importModFiles) == 0 {
+				err = fmt.Errorf("fnc load project failed, no go files loaded")
+				return
+			}
+			for pkg, filenames := range importModFiles {
+				configOfImport.CreateFromFilenames(pkg, filenames...)
+			}
+			programOfImport, loadImportErr := configOfImport.Load()
+			if loadImportErr != nil {
+				err = fmt.Errorf("fnc load import mod project failed, %v", loadImportErr)
+				return
+			}
+			importPrograms[require.Name] = programOfImport
+		}
+	} else {
+		Log().Warnf("fnc can not get GOOATH, so it will not parse imported in go.mod")
+	}
+
 	program, loadErr := config.Load()
 	if loadErr != nil {
 		err = fmt.Errorf("fnc load project failed, %v", loadErr)
@@ -73,36 +120,26 @@ func LoadProject(path string) (p *Project, err error) {
 	}
 
 	p = &Project{
-		Path:    path,
-		Module:  mod,
-		Program: program,
+		Path:           path,
+		Module:         mod,
+		Program:        program,
+		ImportPrograms: importPrograms,
+		Fns:            make([]FnFile, 0, 1),
+		Structs:        make(map[string]Struct),
 	}
 
 	return
 }
 
 type Project struct {
-	Path    string          `json:"path,omitempty"`
-	Module  Module          `json:"module,omitempty"`
-	Program *loader.Program `json:"-"`
-	Fns     []FnFile        `json:"fns,omitempty"`
+	Path           string                     `json:"path,omitempty"`
+	Module         Module                     `json:"module,omitempty"`
+	Program        *loader.Program            `json:"-"`
+	ImportPrograms map[string]*loader.Program `json:"-"`
+	Fns            []FnFile                   `json:"fns,omitempty"`
 	// Structs
 	// key = package(path).StructName
 	Structs map[string]Struct `json:"structs,omitempty"`
-}
-
-func (p *Project) FindStruct(pkgPath string, name string) (str Struct, has bool) {
-	str, has = p.Structs[fmt.Sprintf("%s.%s", pkgPath, name)]
-	return
-}
-
-func (p *Project) PutStruct(pkgPath string, name string, str Struct) {
-	_, has := p.Structs[fmt.Sprintf("%s.%s", pkgPath, name)]
-	if has {
-		return
-	}
-	p.Structs[fmt.Sprintf("%s.%s", pkgPath, name)] = str
-	return
 }
 
 func (p *Project) FindObject(pkgName string, name string) (obj types.Object, has bool) {
@@ -180,7 +217,16 @@ func (p *Project) ObjectOf(ident *ast.Ident) (obj types.Object, has bool) {
 }
 
 func (p *Project) FilepathOfFile(f *ast.File) (filePath string, has bool) {
-	fileInfo := p.Program.Fset.File(f.Pos())
+	var fileInfo *token.File
+	fileInfo = p.Program.Fset.File(f.Pos())
+	if fileInfo == nil {
+		for _, program := range p.ImportPrograms {
+			fileInfo = program.Fset.File(f.Pos())
+			if fileInfo != nil {
+				break
+			}
+		}
+	}
 	if fileInfo == nil {
 		return
 	}
@@ -189,76 +235,28 @@ func (p *Project) FilepathOfFile(f *ast.File) (filePath string, has bool) {
 	return
 }
 
-func (p *Project) PackageNameOfFile(f *ast.File) (name string, has bool) {
-	pkgPos := p.Program.Fset.Position(f.Package)
-	path := pkgPos.Filename
-	if path == "" {
-		return
-	}
-	lineNo := pkgPos.Line
-	if lineNo < 1 {
-		return
-	}
-
-	column := pkgPos.Column
-	if column < 0 {
-		return
-	}
-
-	content, readErr := ioutil.ReadFile(path)
-	if readErr != nil {
-		return
-	}
-	buf := bufio.NewReader(bytes.NewReader(content))
-	lines := 0
-	for {
-		lines++
-		lineContent, _, lineErr := buf.ReadLine()
-		if lineNo == lines {
-			items := strings.Split(string(lineContent), " ")
-			name = items[column]
-			has = name != ""
-			return
-		}
-		if lineErr != nil {
-			break
-		}
-	}
-
-	return
-}
-
-func loadFilenames(path0 string, filenames map[string]string) (err error) {
-
-	walkErr := filepath.Walk(path0, func(path string, info fs.FileInfo, cause error) (err error) {
-		if strings.Contains(path, "/.git/") {
-			return
-		}
-		if info.IsDir() {
-			if path == path0 || strings.HasSuffix(path, ".git") {
+func (p *Project) PackageOfFile(f *ast.File) (pkgPath string, pkgName string, has bool) {
+	for _, info := range p.Program.AllPackages {
+		for _, file := range info.Files {
+			if file == f {
+				pkgPath = info.Pkg.Path()
+				pkgName = info.Pkg.Name()
+				has = true
 				return
 			}
-			subErr := loadFilenames(path, filenames)
-			if subErr != nil {
-				err = subErr
-				return
-			}
-			return
 		}
-		if !strings.HasSuffix(info.Name(), ".go") {
-			return
-		}
-		if _, has := filenames[path]; !has {
-			filenames[path] = info.Name()
-		}
-
-		return
-	})
-
-	if walkErr != nil {
-		err = fmt.Errorf("load filename from %s failed, %v", path0, walkErr)
-		return
 	}
-
+	for _, program := range p.ImportPrograms {
+		for _, info := range program.AllPackages {
+			for _, file := range info.Files {
+				if file == f {
+					pkgPath = info.Pkg.Path()
+					pkgName = info.Pkg.Name()
+					has = true
+					return
+				}
+			}
+		}
+	}
 	return
 }

@@ -18,6 +18,7 @@ package codegen
 
 import (
 	"fmt"
+	"go/ast"
 	"io/fs"
 	"path/filepath"
 	"strings"
@@ -35,6 +36,7 @@ func loadPackageFiles(root string, modName string, pfs map[string][]string) (err
 
 	modIdx := strings.Index(root, modName)
 	if modIdx < 0 {
+		fmt.Println(root, modName, modIdx)
 		err = fmt.Errorf("load project files failed, module name is not in path")
 		return
 	}
@@ -99,6 +101,29 @@ func loadPackageFiles(root string, modName string, pfs map[string][]string) (err
 	if walkErr != nil {
 		err = fmt.Errorf("load filename from %s failed, %v", root, walkErr)
 		return
+	}
+
+	return
+}
+
+func (p *Project) GetImports(file *ast.File) (imports []Import) {
+
+	if file.Imports == nil || len(file.Imports) == 0 {
+		return
+	}
+
+	for _, spec := range file.Imports {
+		path := strings.ReplaceAll(spec.Path.Value, "\"", "")
+		alias := spec.Name
+		name := path[strings.LastIndex(path, "/")+1:]
+		if alias != nil && alias.Name != "" {
+			name = alias.Name
+		}
+		import0 := Import{
+			Path: path,
+			Name: name,
+		}
+		imports = append(imports, import0)
 	}
 
 	return

@@ -35,6 +35,7 @@ type Module struct {
 type Require struct {
 	Name    string
 	Version string
+	Replace string
 }
 
 func loadModuleFile(path string) (mod Module, err error) {
@@ -50,7 +51,7 @@ func loadModuleFile(path string) (mod Module, err error) {
 	}
 
 	buf := bufio.NewReader(bytes.NewReader(content))
-
+	replaces := make(map[string]string)
 	reqFlag := false
 	for {
 		lineContent, _, readLineErr := buf.ReadLine()
@@ -93,11 +94,31 @@ func loadModuleFile(path string) (mod Module, err error) {
 				Version: items[1],
 			})
 		}
+		// replace
+		if strings.Index(line, "replace") == 0 {
+			items := strings.Split(line, " ")
+			key := fmt.Sprintf("%s@%s", items[1], items[2])
+			replace := items[4]
+			replaces[key] = replace
+			continue
+		}
+
 	}
 
 	if mod.Name == "" {
 		err = fmt.Errorf("load go.mod failed, name is missing")
 		return
+	}
+
+	for key, replace := range replaces {
+		name := strings.Split(key, "@")[0]
+		version := strings.Split(key, "@")[1]
+		for i, require := range mod.Requires {
+			if require.Name == name && require.Version == version {
+				require.Replace = replace
+				mod.Requires[i] = require
+			}
+		}
 	}
 
 	return

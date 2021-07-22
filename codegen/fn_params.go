@@ -78,12 +78,18 @@ func parseFnParam1(project *Project, imports []Import, used map[string]Import, p
 	}
 
 	p.Type = Type{
-		IsInterface: true,
-		Package: Import{
-			Path: "github.com/aacfactory/fns",
-			Name: fpTypeStructPkg,
-		},
+		IsContext: true,
 		Name:      "FnContext",
+		Struct: &Struct{
+			Exported: true,
+			Doc:      nil,
+			Package: Import{
+				Path: "github.com/aacfactory/fns",
+				Name: fpTypeStructPkg,
+			},
+			Name:   "",
+			Fields: nil,
+		},
 		InnerType: nil,
 	}
 
@@ -130,18 +136,23 @@ func parseFnParam2(project *Project, imports []Import, used map[string]Import, p
 			used[packageName] = import0
 		}
 
-		obj, hasObj := project.FindObject(import0.Path, structName)
-		if !hasObj {
+		struct0, hasStruct := project.FindStruct(import0.Path, structName)
+		if !hasStruct {
 			err = fmt.Errorf("parse first param failed, first is fns.FnContext, secend is a struct typed")
 			return
 		}
-
-		typ, typErr := parseTypeFromObject(project, obj)
-		if typErr != nil {
-			err = fmt.Errorf("parse first param failed, first is fns.FnContext, secend is a struct typed, %v", typErr)
-			return
+		p.Type = Type{
+			IsBasic:     false,
+			IsStruct:    false,
+			IsInterface: false,
+			IsPtr:       true,
+			IsArray:     false,
+			IsMap:       false,
+			IsErr:       false,
+			Name:        "",
+			Struct:      &struct0,
+			InnerType:   nil,
 		}
-		p.Type = typ
 
 	case *ast.SelectorExpr:
 
