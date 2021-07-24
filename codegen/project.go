@@ -173,6 +173,18 @@ func LoadProject(path string) (p *Project, err error) {
 		tmpStructMap:   make(map[string]bool),
 	}
 
+	loadFnErr := p.loadFn()
+	if loadFnErr != nil {
+		err = fmt.Errorf("fnc load project failed, %v", loadErr)
+		return
+	}
+
+	for _, fnFile := range p.Fns {
+		for _, fn := range fnFile.Functions {
+			Log().Debugf("fnc load fn: [%s]%s", fnFile.Path, fn)
+		}
+	}
+
 	return
 }
 

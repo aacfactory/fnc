@@ -40,18 +40,6 @@ func Generate(path string, plugins []string) (err error) {
 		return
 	}
 
-	loadFnErr := project.LoadFn()
-	if loadFnErr != nil {
-		Log().Errorf("load @Fn in project %s failed, %v", projectPath, loadFnErr)
-		return
-	}
-
-	for _, fnFile := range project.Fns {
-		for _, fn := range fnFile.Functions {
-			Log().Debugf("fnc load fn: [%s]%s", fnFile.Path, fn)
-		}
-	}
-
 	projectContent, encodeErr := json.Marshal(project)
 	if encodeErr != nil {
 		err = encodeErr
@@ -59,5 +47,7 @@ func Generate(path string, plugins []string) (err error) {
 	}
 
 	fmt.Println(string(projectContent))
+
+	// todo write
 	return
 }
