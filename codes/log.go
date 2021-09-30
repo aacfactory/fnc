@@ -16,27 +16,6 @@
 
 package codes
 
-func NewProject(projectDirPath string) (p *Project, err error) {
-	mod, modErr := NewModule(projectDirPath)
-	if modErr != nil {
-		err= modErr
-		return
-	}
-	p = &Project{
-		mod: mod,
-		Fns: make(map[string]map[string]Fn),
-	}
-	err = p.scan()
-	return
-}
+import "github.com/aacfactory/logs"
 
-type Project struct {
-	mod *Module
-	Fns map[string]map[string]Fn
-}
-
-func (p *Project) scan() (err error) {
-
-
-	return
-}
+var Log logs.Logger

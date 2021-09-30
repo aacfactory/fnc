@@ -16,27 +16,25 @@
 
 package codes
 
-func NewProject(projectDirPath string) (p *Project, err error) {
-	mod, modErr := NewModule(projectDirPath)
-	if modErr != nil {
-		err= modErr
-		return
+import (
+	"fmt"
+	"testing"
+)
+
+func TestGetAnnotations(t *testing.T) {
+	doc := `create
+@fn create
+@validate true
+@sqlTX true
+@authorization true
+@permission true
+@description >>>
+bbb
+aaa
+<<<
+xxx`
+	annotations := getAnnotations(doc)
+	for key, value := range annotations {
+		fmt.Println(key, value)
 	}
-	p = &Project{
-		mod: mod,
-		Fns: make(map[string]map[string]Fn),
-	}
-	err = p.scan()
-	return
-}
-
-type Project struct {
-	mod *Module
-	Fns map[string]map[string]Fn
-}
-
-func (p *Project) scan() (err error) {
-
-
-	return
 }
