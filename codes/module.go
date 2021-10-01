@@ -26,23 +26,33 @@ import (
 	"strings"
 )
 
-func NewModule(modFilePath string) (mod *Module, err error) {
-	p, readErr := ioutil.ReadFile(modFilePath)
+func NewModule(modFile string) (mod *Module, err error) {
+	if !filepath.IsAbs(modFile) {
+		modFileAbs, absErr := filepath.Abs(modFile)
+		if absErr != nil {
+			err = fmt.Errorf("fnc: new module failed for absolute representation of %s, %v", modFile, absErr)
+			return
+		}
+		modFile = modFileAbs
+	}
+	modFile = filepath.ToSlash(modFile)
+	modProjectPath, _ := filepath.Split(modFile)
+	p, readErr := ioutil.ReadFile(modFile)
 	if readErr != nil {
-		err = fmt.Errorf("fnc: read mod file failed, %s, %v", modFilePath, readErr)
+		err = fmt.Errorf("fnc: read mod file failed, %s, %v", modFile, readErr)
 		return
 	}
-	mf, parseErr := modfile.Parse(modFilePath, p, func(path, version string) (string, error) {
+	mf, parseErr := modfile.Parse(modFile, p, func(path, version string) (string, error) {
 		return version, nil
 	})
 	if parseErr != nil {
-		err = fmt.Errorf("fnc: parse mod file failed, %s, %v", modFilePath, parseErr)
+		err = fmt.Errorf("fnc: parse mod file failed, %s, %v", modFile, parseErr)
 		return
 	}
 	mod = &Module{}
 	mod.GoVersion = mf.Go.Version
 	mod.Name = mf.Module.Mod.Path
-	mod.Path = fmt.Sprintf("%s/src/%s", gopath(), mod.Name)
+	mod.Path = modProjectPath
 	mod.Requires = make([]Require, 0, 1)
 	if mf.Require != nil {
 		for _, require := range mf.Require {
@@ -267,7 +277,6 @@ func (mod *Module) findStructInProgram(pkgName string, pkgAlias string, name str
 	// todo
 	fmt.Println(imports)
 
-
 	has = true
 	return
 }
@@ -304,17 +313,17 @@ func (r Require) Path() (s string) {
 		} else {
 			gto, name, bv := moduleVersion(r.Replace)
 			if gto {
-				s = fmt.Sprintf("%s/%s/v%d@%s", gopathModPath(), name, bv, r.ReplaceVersion)
+				s = filepath.Join(gopathModPath(), name, fmt.Sprintf("v%d@%s", bv, r.ReplaceVersion))
 			} else {
-				s = fmt.Sprintf("%s/%s@%s", gopathModPath(), r.Replace, r.ReplaceVersion)
+				s = filepath.Join(gopathModPath(), fmt.Sprintf("%s@%s", r.Replace, r.ReplaceVersion))
 			}
 		}
 	} else {
 		gto, name, bv := moduleVersion(r.Name)
 		if gto {
-			s = fmt.Sprintf("%s/%s/v%d@%s", gopathModPath(), name, bv, r.Version)
+			s = filepath.Join(gopathModPath(), name, fmt.Sprintf("v%d@%s", bv, r.Version))
 		} else {
-			s = fmt.Sprintf("%s/%s@%s", gopathModPath(), r.Name, r.Version)
+			s = filepath.Join(gopathModPath(), fmt.Sprintf("%s@%s", r.Name, r.Name))
 		}
 	}
 	return

@@ -22,7 +22,7 @@ import (
 )
 
 func TestNewModule(t *testing.T) {
-	x := `D:\studio\workspace\go\src\tkh.com\tkh\go.mod`
+	x := "D:\\studio\\workspace\\go\\src\\tkh.com\\tkh\\go.mod"
 	mod, modErr := codes.NewModule(x)
 	if modErr != nil {
 		t.Error(modErr)

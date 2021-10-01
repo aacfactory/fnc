@@ -16,15 +16,28 @@
 
 package codes
 
+import (
+	"fmt"
+	"path/filepath"
+)
+
 func NewProject(projectDirPath string) (p *Project, err error) {
+	if !filepath.IsAbs(projectDirPath) {
+		absFilePath, absErr := filepath.Abs(projectDirPath)
+		if absErr != nil {
+			err = fmt.Errorf("fnc: new project failed for absolute representation of %s, %v", projectDirPath, absErr)
+			return
+		}
+		projectDirPath = absFilePath
+	}
 	mod, modErr := NewModule(projectDirPath)
 	if modErr != nil {
-		err= modErr
+		err = modErr
 		return
 	}
 	p = &Project{
 		mod: mod,
-		Fns: make(map[string]map[string]Fn),
+		Fns: make(map[string]*Namespace),
 	}
 	err = p.scan()
 	return
@@ -32,11 +45,15 @@ func NewProject(projectDirPath string) (p *Project, err error) {
 
 type Project struct {
 	mod *Module
-	Fns map[string]map[string]Fn
+	Fns map[string]*Namespace
+}
+
+func (p *Project) Path() (v string) {
+	v = p.mod.Path
+	return
 }
 
 func (p *Project) scan() (err error) {
-
 
 	return
 }

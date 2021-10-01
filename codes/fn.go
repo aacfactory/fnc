@@ -97,6 +97,7 @@ type Field struct {
 }
 
 type Fn struct {
+	Name        string
 	FuncName    string
 	Param       *FnField
 	Result      *FnField

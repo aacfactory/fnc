@@ -38,7 +38,7 @@ func gopath() (s string) {
 }
 
 func gopathModPath() (s string) {
-	s = fmt.Sprintf("%s/pkg/mod", gopath())
+	s = filepath.Join(gopath(), "pkg", "mod")
 	return
 }
 
