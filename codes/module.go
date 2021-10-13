@@ -19,6 +19,7 @@ package codes
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/loader"
 	"io/ioutil"
@@ -27,6 +28,7 @@ import (
 )
 
 func NewModule(modFile string) (mod *Module, err error) {
+	modFile = filepath.ToSlash(modFile)
 	if !filepath.IsAbs(modFile) {
 		modFileAbs, absErr := filepath.Abs(modFile)
 		if absErr != nil {
@@ -35,8 +37,8 @@ func NewModule(modFile string) (mod *Module, err error) {
 		}
 		modFile = modFileAbs
 	}
-	modFile = filepath.ToSlash(modFile)
 	modProjectPath, _ := filepath.Split(modFile)
+	modProjectPath = modProjectPath[0 : len(modProjectPath)-1]
 	p, readErr := ioutil.ReadFile(modFile)
 	if readErr != nil {
 		err = fmt.Errorf("fnc: read mod file failed, %s, %v", modFile, readErr)
@@ -57,9 +59,11 @@ func NewModule(modFile string) (mod *Module, err error) {
 	if mf.Require != nil {
 		for _, require := range mf.Require {
 			r := Require{
-				Name:    require.Mod.Path,
-				Version: require.Mod.Version,
-				Replace: "",
+				Name:           require.Mod.Path,
+				Version:        require.Mod.Version,
+				Replace:        "",
+				ReplaceVersion: "",
+				Indirect:       require.Indirect,
 			}
 			mod.Requires = append(mod.Requires, r)
 		}
@@ -96,16 +100,38 @@ type Module struct {
 	Structs   map[string]*Struct
 }
 
-func (mod *Module) GetStruct(pkg string, pkgAlias string, name string) (v *Struct, has bool) {
+func (mod *Module) CreatedPackageInfos() (infos []*loader.PackageInfo) {
+	infos = mod.Root.Created
+	return
+}
+
+func (mod *Module) FileInfo(f *ast.File) (v *token.File) {
+	v = mod.Root.Fset.File(f.Pos())
+	return
+}
+
+func (mod *Module) GetPackageOfFile(f *ast.File) (name string, ident string, has bool) {
+	for _, info := range mod.Root.Created {
+		for _, file := range info.Files {
+			if file == f {
+				name = info.Pkg.Path()
+				ident = info.Pkg.Name()
+				has = true
+				return
+			}
+		}
+	}
+	return
+}
+
+func (mod *Module) GetStruct(pkg string, pkgAlias string, name string) (v *Struct, has bool, err error) {
 	key := fmt.Sprintf("%s:%s:%s", pkg, pkgAlias, name)
 	v, has = mod.Structs[key]
 	if has {
 		return
 	}
-	v, has = mod.findStruct(pkg, pkgAlias, name)
-	if has {
-		mod.SetStruct(v)
-	}
+	v, has, err = mod.findStruct(pkg, pkgAlias, name)
+
 	return
 }
 
@@ -115,7 +141,7 @@ func (mod *Module) SetStruct(v *Struct) {
 	return
 }
 
-func (mod *Module) findStruct(pkg string, pkgAlias string, name string) (v *Struct, has bool) {
+func (mod *Module) findStruct(pkg string, pkgAlias string, name string) (v *Struct, has bool, err error) {
 	if pkg == "time" {
 		if name == "Time" {
 			v = &Struct{
@@ -202,7 +228,7 @@ func (mod *Module) findStruct(pkg string, pkgAlias string, name string) (v *Stru
 		}
 	}
 	if strings.Contains(pkg, mod.Name) {
-		v, has = mod.findStructInProgram(pkg, pkgAlias, name, mod.Root)
+		v, has, err = mod.findStructInProgram(pkg, pkgAlias, name, mod.Root)
 		return
 	}
 	deps := make(map[string]*loader.Program)
@@ -216,7 +242,7 @@ func (mod *Module) findStruct(pkg string, pkgAlias string, name string) (v *Stru
 			if strings.Contains(pkg, require.Name) {
 				dep, depErr := loadProgram(require.Name, require.Path())
 				if depErr != nil {
-					panic(fmt.Sprintf("fnc: load dep(%s) failed, %s, %v", require.Name, require.Path(), depErr))
+					err = fmt.Errorf("fnc: load dep(%s) failed, %s, %v", require.Name, require.Path(), depErr)
 					return
 				}
 				mod.Deps[require.Name] = dep
@@ -226,11 +252,11 @@ func (mod *Module) findStruct(pkg string, pkgAlias string, name string) (v *Stru
 	}
 
 	if len(deps) == 0 {
-		panic(fmt.Sprintf("fnc: no %s require in go.mod", pkg))
+		err = fmt.Errorf("fnc: no %s require in go.mod", pkg)
 		return
 	}
 	for _, dep := range deps {
-		v, has = mod.findStructInProgram(pkg, pkgAlias, name, dep)
+		v, has, err = mod.findStructInProgram(pkg, pkgAlias, name, dep)
 		if has {
 			return
 		}
@@ -238,12 +264,13 @@ func (mod *Module) findStruct(pkg string, pkgAlias string, name string) (v *Stru
 	return
 }
 
-func (mod *Module) findStructInProgram(pkgName string, pkgAlias string, name string, program *loader.Program) (v *Struct, has bool) {
+func (mod *Module) findStructInProgram(pkgName string, pkgAlias string, name string, program *loader.Program) (v *Struct, has bool, err error) {
 	pkg := program.Package(pkgName)
 	if pkg == nil {
 		return
 	}
 	var spec *ast.TypeSpec
+	var structType *ast.StructType
 	var srcFile *ast.File
 	for _, file := range pkg.Files {
 		for _, decl := range file.Decls {
@@ -258,6 +285,10 @@ func (mod *Module) findStructInProgram(pkgName string, pkgAlias string, name str
 			if typeSpec.Name.Name == name {
 				srcFile = file
 				spec = typeSpec
+				structType0, structTypeOk := typeSpec.Type.(*ast.StructType)
+				if structTypeOk {
+					structType = structType0
+				}
 				break
 			}
 		}
@@ -265,8 +296,14 @@ func (mod *Module) findStructInProgram(pkgName string, pkgAlias string, name str
 			break
 		}
 	}
+	if structType == nil {
+		return
+	}
 	imports := getImports(srcFile)
-	doc := spec.Doc.Text()
+	doc := ""
+	if spec.Doc != nil {
+		doc = spec.Doc.Text()
+	}
 	v = &Struct{
 		Package:      pkgName,
 		PackageAlias: pkgAlias,
@@ -274,9 +311,41 @@ func (mod *Module) findStructInProgram(pkgName string, pkgAlias string, name str
 		Fields:       make([]*Field, 0, 1),
 		Annotations:  getAnnotations(doc),
 	}
-	// todo
-	fmt.Println(imports)
+	mod.SetStruct(v)
+	if structType.Fields != nil && structType.Fields.NumFields() > 0 {
+		for i := 0; i < structType.Fields.NumFields(); i++ {
+			fieldSpec := structType.Fields.List[i]
+			fieldName := fieldSpec.Names[0].Name
+			fieldNameExported := ast.IsExported(fieldName)
+			if !fieldNameExported {
+				continue
+			}
+			field := &Field{
+				Name:        fieldName,
+				Tag:         nil,
+				Type:        nil,
+				Annotations: nil,
+			}
+			if fieldSpec.Tag != nil {
+				field.Tag = getStructFieldTag(fieldSpec.Tag.Value)
+			} else {
+				field.Tag = make(map[string]string)
+			}
+			fieldDoc := ""
+			if fieldSpec.Doc != nil {
+				field.Annotations = getAnnotations(fieldDoc)
+			}
+			// kind && type
+			typ, typeErr := newTypeFromSpec(mod, imports, pkgName, pkgAlias, fieldSpec.Type)
+			if typeErr != nil {
+				err = fmt.Errorf("fnc: parse %s/%s.%s failed for %v", pkgName, name, fieldName, typeErr)
+				return
+			}
+			field.Type = typ
 
+			v.Fields = append(v.Fields, field)
+		}
+	}
 	has = true
 	return
 }
@@ -300,6 +369,7 @@ type Require struct {
 	Version        string
 	Replace        string
 	ReplaceVersion string
+	Indirect       bool
 }
 
 func (r Require) Path() (s string) {
@@ -323,8 +393,41 @@ func (r Require) Path() (s string) {
 		if gto {
 			s = filepath.Join(gopathModPath(), name, fmt.Sprintf("v%d@%s", bv, r.Version))
 		} else {
-			s = filepath.Join(gopathModPath(), fmt.Sprintf("%s@%s", r.Name, r.Name))
+			s = filepath.Join(gopathModPath(), fmt.Sprintf("%s@%s", r.Name, r.Version))
 		}
 	}
 	return
+}
+
+const (
+	StructTypeKind               = "struct"
+	ArrayTypeKind                = "array"
+	MapTypeKind                  = "map"
+	StringType                   = "string"
+	BoolTypeKind                 = "bool"
+	IntTypeKind                  = "int"
+	Int8TypeKind                 = "int8"
+	Int16TypeKind                = "int16"
+	Int32TypeKind                = "int32"
+	Int64TypeKind                = "int64"
+	UIntTypeKind                 = "uint"
+	UInt8TypeKind                = "uint8"
+	UInt16TypeKind               = "uint16"
+	UInt32TypeKind               = "uint32"
+	UInt64TypeKind               = "uint64"
+	Float32TypeKind              = "float32"
+	Float64TypeKind              = "float64"
+	TimeTypeKind                 = "time"
+	FnsDateTypeKind              = "fns/date"
+	JsonRawMessageTypeKind       = "json"
+	FnsJsonRawMessageTypeKind    = "fns/json"
+	FnsJsonObjectMessageTypeKind = "fns/json+object"
+	FnsJsonArrayMessageTypeKind  = "fns/json+array"
+)
+
+type Type struct {
+	Kind   string
+	Indent string // build-in name, map key name
+	Struct *Struct
+	X      *Type
 }

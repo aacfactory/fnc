@@ -51,8 +51,26 @@ type Import struct {
 
 type FnField struct {
 	Name string
-	Kind string
-	Type *Struct
+	Type *Type
+}
+
+func (x *FnField) Title() (title string) {
+	v, has := x.Type.Struct.Annotations["title"]
+	if has {
+		title = v
+		return
+	}
+	title = x.Type.Struct.Key()
+	return
+}
+
+func (x *FnField) Description() (description string) {
+	v, has := x.Type.Struct.Annotations["description"]
+	if has {
+		description = v
+		return
+	}
+	return
 }
 
 type Struct struct {
@@ -63,8 +81,20 @@ type Struct struct {
 	Annotations  map[string]string
 }
 
+func (s Struct) Key() (key string) {
+	key = s.Package + "." + s.Name
+	return
+}
+
 func (s Struct) IsTime() (ok bool) {
 	if s.Package == "time" && s.Name == "Time" {
+		ok = true
+	}
+	return
+}
+
+func (s Struct) IsDate() (ok bool) {
+	if s.Package == "github.com/aacfactory/json" && s.Name == "Date" {
 		ok = true
 	}
 	return
@@ -74,6 +104,10 @@ func (s Struct) IsJson() (ok bool) {
 	if s.Name == "RawMessage" {
 		ok = true
 	}
+	return
+}
+
+func (s Struct) IsJsonObject() (ok bool) {
 	if s.Package == "github.com/aacfactory/json" && s.Name == "Object" {
 		ok = true
 	}
@@ -88,12 +122,29 @@ func (s Struct) IsJsonArray() (ok bool) {
 }
 
 type Field struct {
-	Exported    bool
 	Name        string
-	Tag         string
-	Kind        string
-	Type        *Struct
+	Tag         map[string]string
+	Type        *Type
 	Annotations map[string]string
+}
+
+func (x *Field) Title() (title string) {
+	v, has := x.Annotations["title"]
+	if has {
+		title = v
+		return
+	}
+	title = x.Type.Struct.Key()
+	return
+}
+
+func (x *Field) Description() (description string) {
+	v, has := x.Annotations["description"]
+	if has {
+		description = v
+		return
+	}
+	return
 }
 
 type Fn struct {

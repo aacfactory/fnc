@@ -18,10 +18,12 @@ package codes
 
 import (
 	"fmt"
+	"go/ast"
 	"path/filepath"
 )
 
 func NewProject(projectDirPath string) (p *Project, err error) {
+	projectDirPath = filepath.ToSlash(projectDirPath)
 	if !filepath.IsAbs(projectDirPath) {
 		absFilePath, absErr := filepath.Abs(projectDirPath)
 		if absErr != nil {
@@ -30,7 +32,7 @@ func NewProject(projectDirPath string) (p *Project, err error) {
 		}
 		projectDirPath = absFilePath
 	}
-	mod, modErr := NewModule(projectDirPath)
+	mod, modErr := NewModule(filepath.Join(projectDirPath, "go.mod"))
 	if modErr != nil {
 		err = modErr
 		return
@@ -54,6 +56,26 @@ func (p *Project) Path() (v string) {
 }
 
 func (p *Project) scan() (err error) {
+	for _, info := range p.mod.CreatedPackageInfos() {
+		fmt.Println("info", info.Pkg.Name(), info.Pkg.Path(), len(info.Files))
+		//for _, file := range info.Files {
+		//	fns, scanFnsErr := p.scanFile(file)
+		//	if scanFnsErr != nil {
+		//		err = scanFnsErr
+		//		return
+		//	}
+		//	if fns == nil || len(fns) == 0 {
+		//		continue
+		//	}
+		//}
+	}
+	return
+}
+
+func (p *Project) scanFile(file *ast.File) (fns []*Fn, err error) {
+	if file.Decls == nil {
+		return
+	}
 
 	return
 }
