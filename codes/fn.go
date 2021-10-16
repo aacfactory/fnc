@@ -16,14 +16,57 @@
 
 package codes
 
+import "fmt"
+
 type Namespace struct {
-	DirPath string
-	Package string
-	Imports []Import
-	Fns     map[string]*Fn
+	DirPath     string
+	Package     string
+	Imports     []Import
+	Fns         map[string]*Fn
+	Annotations map[string]string
 }
 
-func (n *Namespace) AddImport(v Import) {
+func (n *Namespace) Internal() (v bool) {
+	x, has := n.Annotations["internal"]
+	if has {
+		v = x == "true"
+	}
+	return
+}
+
+func (n *Namespace) Name() (v string) {
+	v = n.Annotations["namespace"]
+	return
+}
+
+func (n *Namespace) Title() (v string) {
+	v = n.Annotations["title"]
+	return
+}
+
+func (n *Namespace) Description() (v string) {
+	v = n.Annotations["description"]
+	return
+}
+
+func (n *Namespace) AddFn(fn *Fn) (err error) {
+	key := fn.Name
+	_, exist := n.Fns[key]
+	if exist {
+		err = fmt.Errorf("fnc: %s fn in %s is duplicated", key, n.Name())
+		return
+	}
+	n.Fns[key] = fn
+	if fn.Param != nil && fn.Param.Import != nil {
+		n.addImport(*fn.Param.Import)
+	}
+	if fn.Result != nil && fn.Result.Import != nil {
+		n.addImport(*fn.Result.Import)
+	}
+	return
+}
+
+func (n *Namespace) addImport(v Import) {
 	if v.Alias == "_" {
 		return
 	}
@@ -50,22 +93,25 @@ type Import struct {
 }
 
 type FnField struct {
-	Name string
-	Type *Type
+	Name    string
+	IsArray bool
+	Star    bool
+	Import  *Import
+	Struct  *Struct
 }
 
 func (x *FnField) Title() (title string) {
-	v, has := x.Type.Struct.Annotations["title"]
+	v, has := x.Struct.Annotations["title"]
 	if has {
 		title = v
 		return
 	}
-	title = x.Type.Struct.Key()
+	title = x.Struct.Key()
 	return
 }
 
 func (x *FnField) Description() (description string) {
-	v, has := x.Type.Struct.Annotations["description"]
+	v, has := x.Struct.Annotations["description"]
 	if has {
 		description = v
 		return

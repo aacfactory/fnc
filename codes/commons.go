@@ -23,7 +23,6 @@ import (
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/loader"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -67,37 +66,6 @@ func moduleVersion(modName string) (gto bool, name string, bv int) {
 		}
 	} else {
 		name = modName
-		return
-	}
-	return
-}
-
-func getGoFiles2(dirPath string) (files []string, err error) {
-	if strings.Contains(dirPath, "\\") {
-		dirPath = strings.ReplaceAll(dirPath, "\\", "/")
-	}
-	if strings.Contains(dirPath, "/.") {
-		return
-	}
-	walkErr := filepath.Walk(dirPath, func(path string, info fs.FileInfo, cause error) (err error) {
-		if cause != nil {
-			err = cause
-			return
-		}
-		if path == dirPath {
-			return
-		}
-		if info.IsDir() {
-			return
-		}
-		if !strings.HasSuffix(path, ".go") {
-			return
-		}
-		files = append(files, path)
-		return
-	})
-	if walkErr != nil {
-		err = fmt.Errorf("fnc: get go files in %s failed, %v", dirPath, walkErr)
 		return
 	}
 	return
@@ -208,7 +176,7 @@ func getStructFieldTag(tag string) (v map[string]string) {
 
 func getAnnotations(doc string) (v map[string]string) {
 	v = make(map[string]string)
-	if doc == "" {
+	if doc == "" || !strings.Contains(doc, "@") {
 		return
 	}
 	doc = strings.ReplaceAll(doc, "\r", "")

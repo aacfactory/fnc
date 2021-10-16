@@ -22,6 +22,15 @@ import (
 	"path/filepath"
 )
 
+const (
+	useAuthPackage       = ""
+	usePermissionPackage = ""
+	useTxSQLPackage      = ""
+	useCachePackage      = ""
+)
+
+// golang.org/x/tools/imports
+// go/format
 func NewProject(projectDirPath string) (p *Project, err error) {
 	projectDirPath = filepath.ToSlash(projectDirPath)
 	if !filepath.IsAbs(projectDirPath) {
@@ -38,6 +47,7 @@ func NewProject(projectDirPath string) (p *Project, err error) {
 		return
 	}
 	p = &Project{
+		dir: projectDirPath,
 		mod: mod,
 		Fns: make(map[string]*Namespace),
 	}
@@ -46,6 +56,7 @@ func NewProject(projectDirPath string) (p *Project, err error) {
 }
 
 type Project struct {
+	dir string
 	mod *Module
 	Fns map[string]*Namespace
 }
@@ -57,18 +68,72 @@ func (p *Project) Path() (v string) {
 
 func (p *Project) scan() (err error) {
 	for _, info := range p.mod.CreatedPackageInfos() {
-		fmt.Println("info", info.Pkg.Name(), info.Pkg.Path(), len(info.Files))
-		//for _, file := range info.Files {
-		//	fns, scanFnsErr := p.scanFile(file)
-		//	if scanFnsErr != nil {
-		//		err = scanFnsErr
-		//		return
-		//	}
-		//	if fns == nil || len(fns) == 0 {
-		//		continue
-		//	}
-		//}
+		fns := make([]*Fn, 0, 1)
+		ns := ""
+		nsAnnotations := make(map[string]string)
+		for _, file := range info.Files {
+			if ns == "" {
+				ns, nsAnnotations = p.scanNamespaceDoc(file)
+				if ns != "" {
+					_, existNS := p.Fns[ns]
+					if existNS {
+						err = fmt.Errorf("fnc: scan fn failed for %s is duplicated", ns)
+					}
+					continue
+				}
+			}
+			fnsOfFile, scanFnErr := p.scanFile(file)
+			if scanFnErr != nil {
+				err = scanFnErr
+				return
+			}
+			if fnsOfFile != nil && len(fnsOfFile) > 0 {
+				fns = append(fns, fnsOfFile...)
+			}
+		}
+		if ns == "" {
+			if len(fns) > 0 {
+				err = fmt.Errorf("fnc: scan fn failed for some fns has no named namespace")
+				return
+			}
+			continue
+		}
+		if len(fns) == 0 {
+			continue
+		}
+		namespace := &Namespace{
+			DirPath:     filepath.Join(p.dir, info.Pkg.Path()),
+			Package:     info.Pkg.Name(),
+			Imports:     make([]Import, 0, 1),
+			Fns:         make(map[string]*Fn),
+			Annotations: nsAnnotations,
+		}
+		for _, fn := range fns {
+			addErr := namespace.AddFn(fn)
+			if addErr != nil {
+				err = addErr
+				return
+			}
+		}
+		p.Fns[ns] = namespace
 	}
+	return
+}
+
+func (p *Project) scanNamespaceDoc(file *ast.File) (ns string, annotations map[string]string) {
+	doc := file.Doc.Text()
+	if doc == "" {
+		return
+	}
+	annotations = getAnnotations(doc)
+	if len(annotations) == 0 {
+		return
+	}
+	namespace, hasNS := annotations["namespace"]
+	if !hasNS {
+		return
+	}
+	ns = namespace
 	return
 }
 
