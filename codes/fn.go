@@ -18,7 +18,7 @@ package codes
 
 import "fmt"
 
-type Namespace struct {
+type Service struct {
 	DirPath     string
 	Package     string
 	Imports     []Import
@@ -26,7 +26,7 @@ type Namespace struct {
 	Annotations map[string]string
 }
 
-func (n *Namespace) Internal() (v bool) {
+func (n *Service) Internal() (v bool) {
 	x, has := n.Annotations["internal"]
 	if has {
 		v = x == "true"
@@ -34,29 +34,29 @@ func (n *Namespace) Internal() (v bool) {
 	return
 }
 
-func (n *Namespace) Name() (v string) {
-	v = n.Annotations["namespace"]
+func (n *Service) Name() (v string) {
+	v = n.Annotations["service"]
 	return
 }
 
-func (n *Namespace) Title() (v string) {
+func (n *Service) Title() (v string) {
 	v = n.Annotations["title"]
 	return
 }
 
-func (n *Namespace) Description() (v string) {
+func (n *Service) Description() (v string) {
 	v = n.Annotations["description"]
 	return
 }
 
-func (n *Namespace) AddFn(fn *Fn) (err error) {
-	key := fn.Name
-	_, exist := n.Fns[key]
+func (n *Service) AddFn(fn *Fn) (err error) {
+	name := fn.Name()
+	_, exist := n.Fns[name]
 	if exist {
-		err = fmt.Errorf("fnc: %s fn in %s is duplicated", key, n.Name())
+		err = fmt.Errorf("fnc: %s fn in %s is duplicated", name, n.Name())
 		return
 	}
-	n.Fns[key] = fn
+	n.Fns[name] = fn
 	if fn.Param != nil && fn.Param.Import != nil {
 		n.addImport(*fn.Param.Import)
 	}
@@ -66,7 +66,7 @@ func (n *Namespace) AddFn(fn *Fn) (err error) {
 	return
 }
 
-func (n *Namespace) addImport(v Import) {
+func (n *Service) addImport(v Import) {
 	if v.Alias == "_" {
 		return
 	}
@@ -194,9 +194,33 @@ func (x *Field) Description() (description string) {
 }
 
 type Fn struct {
-	Name        string
 	FuncName    string
 	Param       *FnField
 	Result      *FnField
 	Annotations map[string]string
+}
+
+func (f *Fn) Name() (v string) {
+	v = f.Annotations["fn"]
+	return
+}
+
+func (f *Fn) Title() (v string) {
+	v = f.Annotations["title"]
+	return
+}
+
+func (f *Fn) Description() (v string) {
+	v = f.Annotations["description"]
+	return
+}
+
+func (f *Fn) HasParam() (v bool) {
+	v = f.Param != nil
+	return
+}
+
+func (f *Fn) HasResult() (v bool) {
+	v = f.Result != nil
+	return
 }

@@ -25,6 +25,25 @@ import (
 func TestNewProject(t *testing.T) {
 	x := `D:\studio\workspace\go\src\tkh.com\tkh`
 	p, pErr := codes.NewProject(x)
-	fmt.Println(p, pErr)
+	if pErr != nil {
+		t.Error(pErr)
+		return
+	}
+	services := p.Fns
+	for k, service := range services {
+		fmt.Println(fmt.Sprintf("**********%s**********", k))
+		fmt.Println(fmt.Sprintf("name: %s", service.Name()))
+		fmt.Println(fmt.Sprintf("title: %s", service.Title()))
+		fmt.Println(fmt.Sprintf("description: %s", service.Description()))
+		fmt.Println(fmt.Sprintf("internal: %v", service.Internal()))
+		fmt.Println(fmt.Sprintf("fn: %d", len(service.Fns)))
+		for f, fn := range service.Fns {
+			fmt.Println(fmt.Sprintf("%s >>>", f))
+			fmt.Println(fmt.Sprintf("name: %s", fn.Name()))
+			fmt.Println(fmt.Sprintf("title: %s", fn.Title()))
+			fmt.Println(fmt.Sprintf("description: %s", fn.Description()))
+
+		}
+	}
 
 }
