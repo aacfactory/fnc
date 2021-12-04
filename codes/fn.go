@@ -16,13 +16,16 @@
 
 package codes
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 type Service struct {
 	DirPath     string
 	Package     string
-	Imports     []Import
-	Fns         map[string]*Fn
+	Imports     Imports
+	fns         map[string]*Fn
 	Annotations map[string]string
 }
 
@@ -51,22 +54,28 @@ func (n *Service) Description() (v string) {
 
 func (n *Service) AddFn(fn *Fn) (err error) {
 	name := fn.Name()
-	_, exist := n.Fns[name]
+	_, exist := n.fns[name]
 	if exist {
 		err = fmt.Errorf("fnc: %s fn in %s is duplicated", name, n.Name())
 		return
 	}
-	n.Fns[name] = fn
-	if fn.Param != nil && fn.Param.Import != nil {
-		n.addImport(*fn.Param.Import)
+	n.fns[name] = fn
+	if fn.Param != nil && !fn.Param.InFile {
+		v, has := fn.Param.Type.GetImport()
+		if has {
+			n.addImport(v)
+		}
 	}
-	if fn.Result != nil && fn.Result.Import != nil {
-		n.addImport(*fn.Result.Import)
+	if fn.Result != nil && !fn.Result.InFile {
+		v, has := fn.Result.Type.GetImport()
+		if has {
+			n.addImport(v)
+		}
 	}
 	return
 }
 
-func (n *Service) addImport(v Import) {
+func (n *Service) addImport(v *Import) {
 	if v.Alias == "_" {
 		return
 	}
@@ -75,7 +84,7 @@ func (n *Service) addImport(v Import) {
 	}
 	added := false
 	for _, import0 := range n.Imports {
-		if import0.Name == v.Name {
+		if import0.Path == v.Path {
 			added = true
 			break
 		}
@@ -86,109 +95,49 @@ func (n *Service) addImport(v Import) {
 	n.Imports = append(n.Imports, v)
 }
 
-type Import struct {
-	Name  string
-	Alias string
-	Ident string
+func (n *Service) Fns() (v []*Fn) {
+	v = make([]*Fn, 0, 1)
+	for _, fn := range n.fns {
+		v = append(v, fn)
+	}
+	sort.Slice(v, func(i, j int) bool {
+		return v[i].Name() < v[j].Name()
+	})
+	return
 }
 
 type FnField struct {
-	Name    string
-	IsArray bool
-	Star    bool
-	Import  *Import
-	Struct  *Struct
+	InFile bool
+	Name   string
+	Type   *Type
+}
+
+func (x *FnField) String() (s string) {
+	s = fmt.Sprintf("%s %s", x.Name, x.Title())
+	return
 }
 
 func (x *FnField) Title() (title string) {
-	v, has := x.Struct.Annotations["title"]
-	if has {
-		title = v
-		return
+	if x.Type.Struct != nil {
+		v, has := x.Type.Annotations()["title"]
+		if has {
+			title = v
+		} else {
+			title = x.Type.Struct.Key()
+		}
+	} else {
+		title = x.Name
 	}
-	title = x.Struct.Key()
 	return
 }
 
 func (x *FnField) Description() (description string) {
-	v, has := x.Struct.Annotations["description"]
-	if has {
-		description = v
-		return
-	}
-	return
-}
-
-type Struct struct {
-	Package      string
-	PackageAlias string
-	Name         string
-	Fields       []*Field
-	Annotations  map[string]string
-}
-
-func (s Struct) Key() (key string) {
-	key = s.Package + "." + s.Name
-	return
-}
-
-func (s Struct) IsTime() (ok bool) {
-	if s.Package == "time" && s.Name == "Time" {
-		ok = true
-	}
-	return
-}
-
-func (s Struct) IsDate() (ok bool) {
-	if s.Package == "github.com/aacfactory/json" && s.Name == "Date" {
-		ok = true
-	}
-	return
-}
-
-func (s Struct) IsJson() (ok bool) {
-	if s.Name == "RawMessage" {
-		ok = true
-	}
-	return
-}
-
-func (s Struct) IsJsonObject() (ok bool) {
-	if s.Package == "github.com/aacfactory/json" && s.Name == "Object" {
-		ok = true
-	}
-	return
-}
-
-func (s Struct) IsJsonArray() (ok bool) {
-	if s.Package == "github.com/aacfactory/json" && s.Name == "Array" {
-		ok = true
-	}
-	return
-}
-
-type Field struct {
-	Name        string
-	Tag         map[string]string
-	Type        *Type
-	Annotations map[string]string
-}
-
-func (x *Field) Title() (title string) {
-	v, has := x.Annotations["title"]
-	if has {
-		title = v
-		return
-	}
-	title = x.Type.Struct.Key()
-	return
-}
-
-func (x *Field) Description() (description string) {
-	v, has := x.Annotations["description"]
-	if has {
-		description = v
-		return
+	if x.Type.Struct != nil {
+		v, has := x.Type.Annotations()["description"]
+		if has {
+			description = v
+			return
+		}
 	}
 	return
 }

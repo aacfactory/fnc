@@ -17,21 +17,17 @@
 package codes
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/aacfactory/logs"
 	"go/ast"
 	"path/filepath"
-)
-
-const (
-	useAuthPackage       = ""
-	usePermissionPackage = ""
-	useTxSQLPackage      = ""
-	useCachePackage      = ""
+	"sort"
 )
 
 // golang.org/x/tools/imports
 // go/format
-func NewProject(projectDirPath string) (p *Project, err error) {
+func NewProject(projectDirPath string, debug bool) (p *Project, err error) {
 	projectDirPath = filepath.ToSlash(projectDirPath)
 	if !filepath.IsAbs(projectDirPath) {
 		absFilePath, absErr := filepath.Abs(projectDirPath)
@@ -46,19 +42,35 @@ func NewProject(projectDirPath string) (p *Project, err error) {
 		err = modErr
 		return
 	}
+	lvl := logs.ErrorLevel
+	if debug {
+		lvl = logs.DebugLevel
+	}
+	log, logErr := logs.New(logs.Name("fnc"), logs.Color(true), logs.WithLevel(lvl))
+	if logErr != nil {
+		err = fmt.Errorf("fnc: new project failed for create log failed, %v", logErr)
+		return
+	}
 	p = &Project{
-		dir: projectDirPath,
-		mod: mod,
-		Fns: make(map[string]*Service),
+		log:      log,
+		dir:      projectDirPath,
+		mod:      mod,
+		services: make(map[string]*Service),
 	}
 	err = p.scan()
+	if err == nil {
+		if p.log.DebugEnabled() {
+			p.log.Debug().Message(fmt.Sprintf("%s", p.String()))
+		}
+	}
 	return
 }
 
 type Project struct {
-	dir string
-	mod *Module
-	Fns map[string]*Service
+	log      logs.Logger
+	dir      string
+	mod      *Module
+	services map[string]*Service
 }
 
 func (p *Project) Path() (v string) {
@@ -75,7 +87,7 @@ func (p *Project) scan() (err error) {
 			if serviceName == "" {
 				serviceName, serviceAnnotations = p.scanServiceDoc(file)
 				if serviceName != "" {
-					_, existService := p.Fns[serviceName]
+					_, existService := p.services[serviceName]
 					if existService {
 						err = fmt.Errorf("fnc: scan fn failed for %s is duplicated", serviceName)
 					}
@@ -104,8 +116,8 @@ func (p *Project) scan() (err error) {
 		service := &Service{
 			DirPath:     filepath.Join(p.dir, info.Pkg.Path()),
 			Package:     info.Pkg.Name(),
-			Imports:     make([]Import, 0, 1),
-			Fns:         make(map[string]*Fn),
+			Imports:     make([]*Import, 0, 1),
+			fns:         make(map[string]*Fn),
 			Annotations: serviceAnnotations,
 		}
 		for _, fn := range fns {
@@ -115,7 +127,7 @@ func (p *Project) scan() (err error) {
 				return
 			}
 		}
-		p.Fns[serviceName] = service
+		p.services[serviceName] = service
 	}
 	return
 }
@@ -141,6 +153,20 @@ func (p *Project) scanFile(file *ast.File) (fns []*Fn, err error) {
 	if file.Decls == nil {
 		return
 	}
+	// filePkg
+	pkgPath, pkgName, hasPkg := p.mod.GetPackageOfFile(file)
+	if !hasPkg {
+		err = fmt.Errorf("fnc: scan %s fn failed for get packge of file", file.Name)
+		return
+	}
+	pkg := &Import{
+		Name:  pkgName,
+		Alias: "",
+		Path:  pkgPath,
+	}
+	// imports
+	imports := NewImports(file)
+
 	fns = make([]*Fn, 0, 1)
 	for _, decl := range file.Decls {
 		funcDecl, fnOk := decl.(*ast.FuncDecl)
@@ -155,7 +181,7 @@ func (p *Project) scanFile(file *ast.File) (fns []*Fn, err error) {
 		if funcDecl.Doc == nil {
 			continue
 		}
-		ok, fn, fnErr := p.scanFn(file, funcDecl)
+		ok, fn, fnErr := p.scanFn(pkg, imports, funcDecl)
 		if fnErr != nil {
 			err = fnErr
 			return
@@ -167,11 +193,9 @@ func (p *Project) scanFile(file *ast.File) (fns []*Fn, err error) {
 	return
 }
 
-func (p *Project) scanFn(file *ast.File, decl *ast.FuncDecl) (ok bool, fn *Fn, err error) {
-	if file.Decls == nil {
-		return
-	}
-	doc := file.Doc.Text()
+func (p *Project) scanFn(filePkg *Import, imports Imports, decl *ast.FuncDecl) (ok bool, fn *Fn, err error) {
+	// doc
+	doc := decl.Doc.Text()
 	annotations := getAnnotations(doc)
 	if len(annotations) == 0 {
 		return
@@ -180,32 +204,135 @@ func (p *Project) scanFn(file *ast.File, decl *ast.FuncDecl) (ok bool, fn *Fn, e
 	if !hasName {
 		return
 	}
-	if decl.Recv != nil {
-		err = fmt.Errorf("fnc: scan %s fn failed for fn can has recv", name)
-		return
-	}
-	// imports
-
-	// check params and results
+	defer func() {
+		if err != nil {
+			if p.log.ErrorEnabled() {
+				p.log.Error().Message(fmt.Sprintf("fnc: scan %s failed", name))
+			}
+		} else {
+			if p.log.DebugEnabled() {
+				p.log.Debug().Message(fmt.Sprintf("fnc: scan %s succeed", name))
+			}
+		}
+	}()
+	// check params
 	params := decl.Type.Params
-	if params == nil || (len(params.List) > 0 && len(params.List) < 3) {
-		err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two params, first must be *fns.Context, seconed can be star struct", name)
+	if params == nil || !(len(params.List) > 0 && len(params.List) < 3) {
+		err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two params, first must be fns.Context, seconed can be value object struct", name)
 		return
 	}
-	ctxTypeExpr, ctxTypeExprOk := params.List[0].Type.(*ast.SelectorExpr)
+	ctxType, ctxTypeErr := NewType(params.List[0].Type, filePkg.Path, imports, p.mod)
+	if ctxTypeErr != nil || !ctxType.IsFnsContext() {
+		err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two params, first must be fns.Context, seconed can be value object struct", name)
+		return
+	}
+	var param *FnField
+	if len(params.List) == 2 {
+		paramName := params.List[1].Names[0].Name
+		paramType, paramTypeErr := NewType(params.List[1].Type, filePkg.Path, imports, p.mod)
+		if paramTypeErr != nil {
+			err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two params, first must be fns.Context, seconed can be value object struct, %v", name, paramTypeErr)
+			return
+		}
+		if !(paramType.IsArray() || paramType.IsStruct() || paramType.IsStar() || paramType.IsBuiltin()) {
+			err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two params, first must be fns.Context, seconed can be value object struct", name)
+			return
+		}
+		_, hasImport := paramType.GetImport()
+		param = &FnField{
+			InFile: !hasImport,
+			Name:   paramName,
+			Type:   paramType,
+		}
+	}
 
+	// check results
 	results := decl.Type.Results
-	if results == nil || (len(results.List) > 0 && len(results.List) < 3) {
-		err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two results, first can be star struct, last must be github.com/aacfactory/errors.CodeError", name)
+	if results == nil || !(len(results.List) > 0 && len(results.List) < 3) {
+		err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two results, first can be star struct or star struct array, last must be github.com/aacfactory/errors.CodeError", name)
 		return
 	}
+
+	resultName := ""
+	var resultTypeExpr ast.Expr
+	var errTypeExpr ast.Expr
+	if len(results.List) == 1 {
+		errTypeExpr = results.List[0].Type
+	}
+	if len(results.List) == 2 {
+		resultName = results.List[0].Names[0].Name
+		resultTypeExpr = results.List[0].Type
+		errTypeExpr = results.List[1].Type
+	}
+	errType, errTypeErr := NewType(errTypeExpr, filePkg.Path, imports, p.mod)
+	if errTypeErr != nil || !errType.IsFnsCodeError() {
+		err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two results, first can be star struct or star struct array, last must be github.com/aacfactory/errors.CodeError", name)
+		return
+	}
+	var result *FnField
+	if resultName != "" {
+		resultType, resultTypeErr := NewType(resultTypeExpr, filePkg.Path, imports, p.mod)
+		if resultTypeErr != nil {
+			err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two results, first can be star struct or star struct array, last must be github.com/aacfactory/errors.CodeError, %v", name, resultTypeErr)
+			return
+		}
+		if resultType == nil {
+			err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two results, first can be star struct or star struct array, last must be github.com/aacfactory/errors.CodeError", name)
+			return
+		}
+		if !(resultType.IsArray() || resultType.IsStar() || resultType.IsBuiltin() || resultType.IsMap()) {
+			err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two results, first can be star struct or star struct array, last must be github.com/aacfactory/errors.CodeError", name)
+			return
+		}
+		_, hasImport := resultType.GetImport()
+		result = &FnField{
+			InFile: !hasImport,
+			Name:   resultName,
+			Type:   resultType,
+		}
+	}
+
 	// return
 	fn = &Fn{
 		FuncName:    decl.Name.Name,
-		Param:       nil,
-		Result:      nil,
+		Param:       param,
+		Result:      result,
 		Annotations: annotations,
 	}
 	ok = true
+	return
+}
+
+func (p *Project) Services() (v []*Service) {
+	v = make([]*Service, 0, 1)
+	for _, service := range p.services {
+		v = append(v, service)
+	}
+	sort.Slice(v, func(i, j int) bool {
+		return v[i].Name() < v[j].Name()
+	})
+	return
+}
+
+func (p *Project) String() (s string) {
+	b := bytes.NewBufferString("")
+	b.WriteString(fmt.Sprintf("\nMod        : %s\n", p.mod.Name))
+	b.WriteString(fmt.Sprintf("Service Num: %d\n", len(p.services)))
+	for _, service := range p.Services() {
+		b.WriteString(fmt.Sprintf("*************%s*************\n", service.Name()))
+		b.WriteString(fmt.Sprintf("Package : %s\n", service.Package))
+		b.WriteString(fmt.Sprintf("Title   : %s\n", service.Title()))
+		b.WriteString(fmt.Sprintf("Internal: %v\n", service.Internal()))
+		b.WriteString(fmt.Sprintf("Path    : %s\n", service.DirPath))
+
+		b.WriteString(fmt.Sprintf("Fn Num  : %d\n", len(service.fns)))
+		for _, fn := range service.Fns() {
+			b.WriteString(fmt.Sprintf("\tFn: %s\n", fn.Name()))
+			b.WriteString(fmt.Sprintf("\t\tTitle : %s\n", fn.Title()))
+			b.WriteString(fmt.Sprintf("\t\tParam : %v\n", fn.Param))
+			b.WriteString(fmt.Sprintf("\t\tResult: %v\n", fn.Result))
+		}
+	}
+	s = b.String()
 	return
 }

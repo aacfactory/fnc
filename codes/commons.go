@@ -18,14 +18,12 @@ package codes
 
 import (
 	"fmt"
-	"go/ast"
 	"go/parser"
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/loader"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"strings"
 )
@@ -108,30 +106,37 @@ func loadProgram(pkg string, programDir string) (program *loader.Program, err er
 	return
 }
 
-func getImports(file *ast.File) (imports []Import) {
-	if file.Imports == nil || len(file.Imports) == 0 {
-		return
-	}
-	for _, spec := range file.Imports {
-		name := strings.ReplaceAll(spec.Path.Value, "\"", "")
-		aliasSpec := spec.Name
-		alias := ""
-		ident := name[strings.LastIndex(name, "/")+1:]
-		if aliasSpec != nil && aliasSpec.Name != "" {
-			alias = aliasSpec.Name
-			ident = alias
-		}
-		import0 := Import{
-			Alias: alias,
-			Name:  name,
-			Ident: ident,
-		}
-		imports = append(imports, import0)
-	}
-	return
-}
+//func getImports(file *ast.File) (imports []*Import) {
+//	if file.Imports == nil || len(file.Imports) == 0 {
+//		return
+//	}
+//	for _, spec := range file.Imports {
+//		path := strings.ReplaceAll(spec.Path.Value, "\"", "")
+//		aliasSpec := spec.Name
+//		alias := ""
+//		name := path[strings.LastIndex(path, "/")+1:]
+//		if aliasSpec != nil && aliasSpec.Name != "" {
+//			alias = aliasSpec.Name
+//			name = alias
+//		}
+//		import0 := Import{
+//			Alias: alias,
+//			Name:  name,
+//			Path:  path,
+//		}
+//		imports = append(imports, &import0)
+//	}
+//	return
+//}
 
 func getStructFieldTag(tag string) (v map[string]string) {
+	v = make(map[string]string)
+	if tag[0] == '`' {
+		tag = tag[1:]
+	}
+	if tag[len(tag)-1] == '`' {
+		tag = tag[:len(tag)-1]
+	}
 	for tag != "" {
 		// Skip leading space.
 		i := 0
@@ -142,6 +147,11 @@ func getStructFieldTag(tag string) (v map[string]string) {
 		if tag == "" {
 			break
 		}
+
+		// Scan to colon. A space, a quote or a control character is a syntax error.
+		// Strictly speaking, control chars include the range [0x7f, 0x9f], not just
+		// [0x00, 0x1f], but in practice, we ignore the multi-byte control characters
+		// as it is simpler to inspect the tag's bytes than the tag's runes.
 		i = 0
 		for i < len(tag) && tag[i] > ' ' && tag[i] != ':' && tag[i] != '"' && tag[i] != 0x7f {
 			i++
@@ -149,7 +159,7 @@ func getStructFieldTag(tag string) (v map[string]string) {
 		if i == 0 || i+1 >= len(tag) || tag[i] != ':' || tag[i+1] != '"' {
 			break
 		}
-		name := tag[:i]
+		name := string(tag[:i])
 		tag = tag[i+1:]
 
 		// Scan quoted string to find value.
@@ -164,12 +174,12 @@ func getStructFieldTag(tag string) (v map[string]string) {
 			break
 		}
 		qvalue := tag[:i+1]
+		tag = tag[i+1:]
 		value, err := strconv.Unquote(qvalue)
 		if err != nil {
-			continue
+			break
 		}
 		v[name] = value
-		tag = tag[i+1:]
 	}
 	return
 }
@@ -216,173 +226,6 @@ func getAnnotations(doc string) (v map[string]string) {
 			continue
 		}
 		v[key] = val
-	}
-	return
-}
-
-func newTypeFromSpec(mod *Module, imports []Import, pkgName string, pkgAlias string, target ast.Expr) (typ *Type, err error) {
-	switch target.(type) {
-	case *ast.Ident:
-		expr := target.(*ast.Ident)
-		if expr.Obj != nil {
-			// 同一个文件
-			structType, has0, getErr := mod.GetStruct(pkgName, pkgAlias, expr.Obj.Name)
-			if getErr != nil {
-				err = getErr
-				return
-			}
-			if !has0 {
-				err = fmt.Errorf("can not get struct %s/%s", pkgName, expr.Obj.Name)
-				return
-			}
-			typ = &Type{
-				Kind:   StructTypeKind,
-				Indent: "",
-				Struct: structType,
-				X:      nil,
-			}
-		} else {
-			// 基础内置类型
-			typ = &Type{
-				Kind:   strings.ToLower(expr.Name),
-				Indent: expr.Name,
-				Struct: nil,
-				X:      nil,
-			}
-		}
-	case *ast.SelectorExpr:
-		expr := target.(*ast.SelectorExpr)
-		structName := expr.Sel.Name
-		ident, identOk := expr.X.(*ast.Ident)
-		if !identOk {
-			err = fmt.Errorf("parse struct %s/%s failed", pkgName, structName)
-			return
-		}
-		targetPkgName := ident.Name
-		var targetPkg *Import
-		for _, import0 := range imports {
-			if import0.Ident == targetPkgName {
-				targetPkg = &import0
-				break
-			}
-		}
-		if targetPkg == nil {
-			err = fmt.Errorf("parse struct %s/%s failed", pkgName, structName)
-			return
-		}
-		structType, has0, getErr := mod.GetStruct(targetPkg.Name, targetPkg.Alias, structName)
-		if getErr != nil {
-			err = getErr
-			return
-		}
-		if !has0 {
-			err = fmt.Errorf("fnc: can not get struct %s/%s", pkgName, structName)
-			return
-		}
-		typ = &Type{
-			Kind:   StructTypeKind,
-			Indent: structName,
-			Struct: structType,
-			X:      nil,
-		}
-	case *ast.StarExpr:
-		expr := target.(*ast.StarExpr)
-		switch expr.X.(type) {
-		case *ast.Ident:
-			ident := expr.X.(*ast.Ident)
-			structName := ident.Name
-			structType, has0, getErr := mod.GetStruct(pkgName, pkgAlias, structName)
-			if getErr != nil {
-				err = getErr
-				return
-			}
-			if !has0 {
-				err = fmt.Errorf("can not get struct %s/%s", pkgName, structName)
-				return
-			}
-			typ = &Type{
-				Kind:   StructTypeKind,
-				Indent: structName,
-				Struct: structType,
-				X:      nil,
-			}
-		case *ast.SelectorExpr:
-			sExpr := expr.X.(*ast.SelectorExpr)
-			structName := sExpr.Sel.Name
-			ident, identOk := sExpr.X.(*ast.Ident)
-			if !identOk {
-				return
-			}
-
-			targetPkgName := ident.Name
-			var targetPkg *Import
-			for _, import0 := range imports {
-				if import0.Ident == targetPkgName {
-					targetPkg = &import0
-					break
-				}
-			}
-			if targetPkg == nil {
-				err = fmt.Errorf("parse struct %s/%s failed", pkgName, structName)
-				return
-			}
-
-			structType, has0, getErr := mod.GetStruct(targetPkg.Name, targetPkg.Alias, structName)
-			if getErr != nil {
-				err = getErr
-				return
-			}
-			if !has0 {
-				err = fmt.Errorf("can not get struct %s/%s", pkgName, structName)
-				return
-			}
-			typ = &Type{
-				Kind:   StructTypeKind,
-				Indent: structName,
-				Struct: structType,
-				X:      nil,
-			}
-		}
-	case *ast.SliceExpr, *ast.ArrayType:
-		var expr ast.Expr
-		sExpr, sOk := target.(*ast.SliceExpr)
-		if sOk {
-			expr = sExpr.X
-		} else {
-			aExpr := target.(*ast.ArrayType)
-			expr = aExpr.Elt
-		}
-		x, xErr := newTypeFromSpec(mod, imports, pkgName, pkgAlias, expr)
-		if xErr != nil {
-			err = xErr
-			return
-		}
-		typ = &Type{
-			Kind:   ArrayTypeKind,
-			Indent: "",
-			Struct: nil,
-			X:      x,
-		}
-	case *ast.MapType:
-		expr := target.(*ast.MapType)
-		keyExpr, keyOk := expr.Key.(*ast.Ident)
-		if !keyOk {
-			err = fmt.Errorf("parse map failed key is not build-in type")
-		}
-		valueExpr := expr.Value
-		x, xErr := newTypeFromSpec(mod, imports, pkgName, pkgAlias, valueExpr)
-		if xErr != nil {
-			err = xErr
-			return
-		}
-		typ = &Type{
-			Kind:   MapTypeKind,
-			Indent: keyExpr.Name,
-			Struct: nil,
-			X:      x,
-		}
-	default:
-		err = fmt.Errorf("parse failed for %s is not supported", reflect.TypeOf(target).String())
 	}
 	return
 }
