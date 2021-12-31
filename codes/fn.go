@@ -18,98 +18,8 @@ package codes
 
 import (
 	"fmt"
-	"sort"
+	"github.com/aacfactory/cases"
 )
-
-type Service struct {
-	DirPath     string
-	Package     string
-	Imports     Imports
-	fns         map[string]*Fn
-	Annotations map[string]string
-}
-
-func (n *Service) Internal() (v bool) {
-	x, has := n.Annotations["internal"]
-	if has {
-		v = x == "true"
-	}
-	return
-}
-
-func (n *Service) Name() (v string) {
-	v = n.Annotations["service"]
-	return
-}
-
-func (n *Service) Title() (v string) {
-	v = n.Annotations["title"]
-	return
-}
-
-func (n *Service) Description() (v string) {
-	v = n.Annotations["description"]
-	return
-}
-
-func (n *Service) AddFn(fn *Fn) (err error) {
-	name := fn.Name()
-	_, exist := n.fns[name]
-	if exist {
-		err = fmt.Errorf("fnc: %s fn in %s is duplicated", name, n.Name())
-		return
-	}
-	n.fns[name] = fn
-	if fn.Param != nil && !fn.Param.InFile {
-		v, has := fn.Param.Type.GetImport()
-		if has {
-			n.addImport(v)
-		}
-	}
-	if fn.Result != nil && !fn.Result.InFile {
-		v, has := fn.Result.Type.GetImport()
-		if has {
-			n.addImport(v)
-		}
-	}
-	return
-}
-
-func (n *Service) addImport(v *Import) {
-	if v.Alias == "_" {
-		return
-	}
-	if v.Name == n.Package {
-		return
-	}
-	added := false
-	for _, import0 := range n.Imports {
-		if import0.Path == v.Path {
-			added = true
-			break
-		}
-	}
-	if added {
-		return
-	}
-	n.Imports = append(n.Imports, v)
-}
-
-func (n *Service) Fns() (v []*Fn) {
-	v = make([]*Fn, 0, 1)
-	for _, fn := range n.fns {
-		v = append(v, fn)
-	}
-	sort.Slice(v, func(i, j int) bool {
-		return v[i].Name() < v[j].Name()
-	})
-	return
-}
-
-func (n *Service) generate() (err error) {
-	// todo
-	return
-}
 
 type FnField struct {
 	InFile bool
@@ -176,5 +86,16 @@ func (f *Fn) HasParam() (v bool) {
 
 func (f *Fn) HasResult() (v bool) {
 	v = f.Result != nil
+	return
+}
+
+func (f *Fn) NameToConstName() (v string, err error) {
+	atoms, parseErr := cases.Snake().Parse(f.Name())
+	if parseErr != nil {
+		err = fmt.Errorf("fn name is invalid, %s is not snake format", f.Name())
+		return
+	}
+	atoms = append(atoms, "fn")
+	v = cases.Camel().Format(atoms)
 	return
 }
