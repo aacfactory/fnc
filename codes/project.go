@@ -25,8 +25,6 @@ import (
 	"sort"
 )
 
-// golang.org/x/tools/imports
-// go/format
 func NewProject(projectDirPath string, debug bool) (p *Project, err error) {
 	projectDirPath = filepath.ToSlash(projectDirPath)
 	if !filepath.IsAbs(projectDirPath) {
@@ -57,12 +55,7 @@ func NewProject(projectDirPath string, debug bool) (p *Project, err error) {
 		mod:      mod,
 		services: make(map[string]*Service),
 	}
-	err = p.scan()
-	if err == nil {
-		if p.log.DebugEnabled() {
-			p.log.Debug().Message(fmt.Sprintf("%s", p.String()))
-		}
-	}
+
 	return
 }
 
@@ -78,7 +71,7 @@ func (p *Project) Path() (v string) {
 	return
 }
 
-func (p *Project) scan() (err error) {
+func (p *Project) Scan() (err error) {
 	for _, info := range p.mod.CreatedPackageInfos() {
 		fns := make([]*Fn, 0, 1)
 		serviceName := ""
@@ -311,6 +304,20 @@ func (p *Project) Services() (v []*Service) {
 	sort.Slice(v, func(i, j int) bool {
 		return v[i].Name() < v[j].Name()
 	})
+	return
+}
+
+func (p *Project) Generate() (err error) {
+	services := p.Services()
+	if len(services) == 0 {
+		return
+	}
+	for _, service := range services {
+		err = service.generate()
+		if err != nil {
+			return
+		}
+	}
 	return
 }
 

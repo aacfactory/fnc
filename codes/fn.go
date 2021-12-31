@@ -106,6 +106,11 @@ func (n *Service) Fns() (v []*Fn) {
 	return
 }
 
+func (n *Service) generate() (err error) {
+	// todo
+	return
+}
+
 type FnField struct {
 	InFile bool
 	Name   string

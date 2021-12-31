@@ -19,7 +19,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/aacfactory/fnc/codegen"
+	"github.com/aacfactory/fnc/codes"
 	"github.com/urfave/cli/v2"
 	"os"
 	"runtime"
@@ -80,14 +80,25 @@ func main() {
 		},
 	}
 	app.Action = func(c *cli.Context) (err error) {
-		plugins := c.StringSlice("plugin")
-		project := c.Path("project")
+		projectDir := c.Path("project")
 		debug := c.Bool("debug")
-
-		codegen.CreateLog(debug)
-
-		codegen.Generate(project, plugins)
-
+		p, pErr := codes.NewProject(projectDir, debug)
+		if pErr != nil {
+			err = pErr
+			return
+		}
+		scanErr := p.Scan()
+		if scanErr == nil {
+			err = scanErr
+			return
+		}
+		generateErr := p.Generate()
+		if generateErr == nil {
+			err = generateErr
+			return
+		}
+		// todo plugins
+		// plugins := c.StringSlice("plugin")
 		return
 	}
 
