@@ -29,7 +29,10 @@ func NewStruct(pkg string, name string, mod *Module) (s *Struct, err error) {
 		return
 	}
 	mods := make(map[string]*Module)
-	if strings.Contains(pkg, mod.Name) || strings.Index(pkg, "main") == 0 {
+	if strings.Index(pkg, mod.Name) == 0 {
+		pkg = strings.Replace(pkg, mod.Name, "main", 1)
+	}
+	if strings.Index(pkg, "main") == 0 {
 		mods[mod.Name] = mod
 	} else {
 		deps, depsErr := mod.FindDeps(pkg)

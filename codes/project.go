@@ -23,6 +23,7 @@ import (
 	"go/ast"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 func NewProject(projectDirPath string, debug bool) (p *Project, err error) {
@@ -97,17 +98,21 @@ func (p *Project) Scan() (err error) {
 			}
 		}
 		if serviceName == "" {
-			if len(fns) > 0 {
-				err = fmt.Errorf("fnc: scan fn failed for some fns has no named service")
-				return
-			}
+			//if len(fns) > 0 {
+			//	err = fmt.Errorf("fnc: scan fn failed for some fns has no named service")
+			//	return
+			//}
 			continue
 		}
 		if len(fns) == 0 {
 			continue
 		}
+		servicePath := info.Pkg.Path()
+		if strings.Index(servicePath, "main/") == 0 {
+			servicePath = strings.Replace(servicePath, "main/", "", 1)
+		}
 		service := &Service{
-			DirPath:     filepath.Join(p.dir, info.Pkg.Path()),
+			DirPath:     filepath.Join(p.dir, servicePath),
 			Package:     info.Pkg.Name(),
 			Imports:     make([]*Import, 0, 1),
 			fns:         make(map[string]*Fn),

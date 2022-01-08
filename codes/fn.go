@@ -19,12 +19,40 @@ package codes
 import (
 	"fmt"
 	"github.com/aacfactory/cases"
+	"github.com/aacfactory/gcg"
+	"strings"
 )
 
 type FnField struct {
 	InFile bool
 	Name   string
 	Type   *Type
+}
+
+// prefix: param | result,
+func (x *FnField) MapToDocCode(prefix string) (v gcg.Code, err error) {
+	if x.Type.IsBuiltin() {
+		token := ""
+		switch x.Type.Indent {
+		case "string":
+			token = fmt.Sprintf("fns.StringObjectDocument(\"%s\", \"%s\", \"%s\")", x.Name, x.Title(), x.Description())
+		case "bool":
+			token = fmt.Sprintf("fns.BoolObjectDocument(\"%s\", \"%s\", \"%s\")", x.Name, x.Title(), x.Description())
+		case "int":
+			token = fmt.Sprintf("fns.IntObjectDocument(\"%s\", \"%s\", \"%s\")", x.Name, x.Title(), x.Description())
+		case "int64":
+			token = fmt.Sprintf("fns.Int64ObjectDocument(\"%s\", \"%s\", \"%s\")", x.Name, x.Title(), x.Description())
+		case "float32":
+			token = fmt.Sprintf("fns.Float32ObjectDocument(\"%s\", \"%s\", \"%s\")", x.Name, x.Title(), x.Description())
+		case "float64":
+			token = fmt.Sprintf("fns.Float64ObjectDocument(\"%s\", \"%s\", \"%s\")", x.Name, x.Title(), x.Description())
+		default:
+			err = fmt.Errorf("type %s does not support for param", x.Type.CodeString())
+			return
+		}
+		v = gcg.Token(fmt.Sprintf("%s.Argument = %s", prefix, token)).Line()
+	}
+	return
 }
 
 func (x *FnField) String() (s string) {
@@ -79,6 +107,41 @@ func (f *Fn) Description() (v string) {
 	return
 }
 
+func (f *Fn) HasValidate() (v bool) {
+	v = f.Annotations["validate"] == "true"
+	return
+}
+
+func (f *Fn) HasAuthorization() (v bool) {
+	v = f.Annotations["authorization"] == "true"
+	return
+}
+
+func (f *Fn) HasDeprecated() (v bool) {
+	v = f.Annotations["deprecated"] == "true"
+	return
+}
+
+func (f *Fn) HasPermission() (v bool) {
+	v = f.Annotations["permission"] == "true"
+	return
+}
+
+func (f *Fn) HasTx() (kind string, opts []string, has bool) {
+	kind = f.Annotations["tx"]
+	has = kind != ""
+	if has {
+		optIdx := strings.Index(kind, ":")
+		if optIdx > 0 {
+			// @tx sql:1s
+			kind = kind[0:optIdx]
+			opt := kind[optIdx+1:]
+			opts = strings.Split(opt, ",")
+		}
+	}
+	return
+}
+
 func (f *Fn) HasParam() (v bool) {
 	v = f.Param != nil
 	return
@@ -96,6 +159,16 @@ func (f *Fn) NameToConstName() (v string, err error) {
 		return
 	}
 	atoms = append(atoms, "fn")
+	v = cases.LowerCamel().Format(atoms)
+	return
+}
+
+func (f *Fn) NameToProxyName() (v string, err error) {
+	atoms, parseErr := cases.Camel().Parse(f.FuncName)
+	if parseErr != nil {
+		err = fmt.Errorf("fn name is invalid, %s is not camel format", f.Name())
+		return
+	}
 	v = cases.Camel().Format(atoms)
 	return
 }

@@ -22,20 +22,21 @@ import (
 )
 
 func TestNewProject(t *testing.T) {
-	//x := `D:\studio\workspace\go\src\tkh.com\tkh`
-	x := `D:\studio\workspace\go\src\github.com\aacfactory\fns-example\standalone`
+	x := `D:\studio\workspace\go\src\tkh.com\tkh`
+	//x := `D:\studio\workspace\go\src\github.com\aacfactory\fns-example\standalone`
 	p, pErr := codes.NewProject(x, true)
 	if pErr != nil {
 		t.Error(pErr)
 		return
 	}
 	scanErr := p.Scan()
-	if scanErr == nil {
+	if scanErr != nil {
 		t.Error(scanErr)
 		return
 	}
+	//fmt.Println(fmt.Sprintf("%v", p))
 	generateErr := p.Generate()
-	if generateErr == nil {
+	if generateErr != nil {
 		t.Error(generateErr)
 		return
 	}

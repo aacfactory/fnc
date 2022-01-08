@@ -18,8 +18,10 @@ package codes
 
 import (
 	"fmt"
+	"github.com/aacfactory/gcg"
 	"go/ast"
 	"reflect"
+	"strings"
 )
 
 func NewType(e ast.Expr, pkgPath string, imports Imports, mod *Module) (typ *Type, err error) {
@@ -33,9 +35,21 @@ func NewType(e ast.Expr, pkgPath string, imports Imports, mod *Module) (typ *Typ
 	switch e.(type) {
 	case *ast.Ident:
 		expr := e.(*ast.Ident)
-		if expr.Obj != nil {
+		if expr.Obj == nil {
+			_struct, structErr := NewStruct(pkgPath, expr.Name, mod)
+			if structErr != nil {
+				err = fmt.Errorf("decode type of %s %s failed, expr type is %v, %v", pkgPath, e, reflect.TypeOf(e), structErr)
+				return
+			}
+			typ = &Type{
+				Kind:   "struct",
+				Indent: "",
+				Struct: _struct,
+			}
+		} else {
 			// 同一个文件
 			if expr.Obj.Kind != ast.Typ || expr.Obj.Decl == nil {
+
 				err = fmt.Errorf("decode type of %s %s failed, expr type is %v", pkgPath, e, reflect.TypeOf(e))
 				return
 			}
@@ -49,7 +63,7 @@ func NewType(e ast.Expr, pkgPath string, imports Imports, mod *Module) (typ *Typ
 			case *ast.StructType:
 				_struct, structErr := NewStruct(pkgPath, expr.Obj.Name, mod)
 				if structErr != nil {
-					err = fmt.Errorf("decode type of %s %s failed, expr type is %v", pkgPath, e, reflect.TypeOf(e))
+					err = fmt.Errorf("decode type of %s %s failed, expr type is %v, %v", pkgPath, e, reflect.TypeOf(e), structErr)
 					return
 				}
 				typ = &Type{
@@ -61,11 +75,11 @@ func NewType(e ast.Expr, pkgPath string, imports Imports, mod *Module) (typ *Typ
 				eltExpr := declType.(*ast.ArrayType).Elt
 				eltType, eltErr := NewType(eltExpr, pkgPath, imports, mod)
 				if eltErr != nil {
-					err = eltErr
+					err = fmt.Errorf("decode type of %s %s failed, expr type is %v, %v", pkgPath, e, reflect.TypeOf(e), eltErr)
 					return
 				}
 				if eltType == nil {
-					err = fmt.Errorf("decode type of %s %s failed, expr type is %v", pkgPath, e, reflect.TypeOf(e))
+					err = fmt.Errorf("decode type of %s %s failed, expr type is %v, not elt", pkgPath, e, reflect.TypeOf(e))
 					return
 				}
 				typ = &Type{
@@ -76,14 +90,14 @@ func NewType(e ast.Expr, pkgPath string, imports Imports, mod *Module) (typ *Typ
 					Y:      nil,
 				}
 			case *ast.Ident:
-				builtElt := declType.(*ast.Ident)
+				identExpr := declType.(*ast.Ident)
 				if expr.Obj != nil {
 					err = fmt.Errorf("decode type of %s %s failed, expr type is %v", pkgPath, e, reflect.TypeOf(e))
 					return
 				}
 				typ = &Type{
 					Kind:   "builtin",
-					Indent: builtElt.Name,
+					Indent: identExpr.Name,
 				}
 			case *ast.MapType:
 				mapExpr := declType.(*ast.MapType)
@@ -98,7 +112,7 @@ func NewType(e ast.Expr, pkgPath string, imports Imports, mod *Module) (typ *Typ
 				}
 				valType, valErr := NewType(mapExpr.Value, pkgPath, imports, mod)
 				if valErr != nil {
-					err = valErr
+					err = fmt.Errorf("decode type of %s failed, expr type is %v, %v", e, reflect.TypeOf(e), valErr)
 					return
 				}
 				if valType != nil {
@@ -121,12 +135,6 @@ func NewType(e ast.Expr, pkgPath string, imports Imports, mod *Module) (typ *Typ
 				return
 			}
 
-		} else {
-			// 基础内置类型
-			typ = &Type{
-				Kind:   "builtin",
-				Indent: expr.Name,
-			}
 		}
 	case *ast.SelectorExpr:
 		expr := e.(*ast.SelectorExpr)
@@ -144,7 +152,7 @@ func NewType(e ast.Expr, pkgPath string, imports Imports, mod *Module) (typ *Typ
 		}
 		_struct, structErr := NewStruct(import_.Path, structName, mod)
 		if structErr != nil {
-			err = fmt.Errorf("decode type of %s %s failed, expr type is %v", pkgPath, e, reflect.TypeOf(e))
+			err = fmt.Errorf("decode type of %s %s failed, expr type is %v, %v", pkgPath, e, reflect.TypeOf(e), structErr)
 			return
 		}
 		typ = &Type{
@@ -237,6 +245,65 @@ type Type struct {
 	Struct *Struct
 	X      *Type // if map, x is key
 	Y      *Type // if map, y is value
+}
+
+func (t *Type) MapToDocCode(objects map[string]string) (v gcg.Code, err error) {
+	x := gcg.Statements()
+	if _, has := objects[t.ObjectKey()]; has {
+		return
+	}
+	objects[t.ObjectKey()] = t.ObjectKey()
+
+	if t.IsArray() {
+		y, yErr := t.X.MapToDocCode(objects)
+		if yErr != nil {
+			err = yErr
+			return
+		}
+		x.Token(fmt.Sprintf("%s := fns.ArrayObjectDocument(\"%s\", \"%s\", \"%s\", %s)", t.ObjectKey(), t.ObjectKey(), t.))
+	} else if t.IsMap() {
+
+	} else if t.IsStar() {
+
+	} else if t.IsStruct() {
+
+	}
+	return
+}
+
+func (t *Type) ObjectKey() (v string) {
+	if t.IsStruct() {
+		v = strings.ReplaceAll(t.Struct.Key(), "/", "_")
+		v = strings.ReplaceAll(v, ".", "_")
+		return
+	}
+	if t.IsStar() {
+		v = t.X.ObjectKey()
+		return
+	}
+	if t.IsArray() {
+		v = t.X.ObjectKey() + "_array"
+		return
+	}
+	return
+}
+
+func (t *Type) CodeString() (v string) {
+	if t.IsBuiltin() {
+		v = t.Indent
+	} else if t.IsStruct() {
+		import_, has := t.GetImport()
+		if has {
+			v = import_.Name + "." + t.Struct.Name
+		} else {
+			v = t.Struct.Name
+		}
+	} else if t.IsArray() {
+		v = "[]" + t.X.CodeString()
+	} else if t.IsStar() {
+		v = "*" + t.X.CodeString()
+	}
+	return
 }
 
 func (t *Type) Annotations() (v map[string]string) {
@@ -358,10 +425,12 @@ func tryDecodeCommonType(e ast.Expr, imports Imports) (typ *Type, err error) {
 	case *ast.Ident:
 		expr := e.(*ast.Ident)
 		if expr.Obj == nil {
-			// 基础内置类型
-			typ = &Type{
-				Kind:   "builtin",
-				Indent: expr.Name,
+			if isBuiltin(expr.Name) {
+				// 基础内置类型
+				typ = &Type{
+					Kind:   "builtin",
+					Indent: expr.Name,
+				}
 			}
 		}
 	case *ast.SelectorExpr:
@@ -595,6 +664,26 @@ func tryDecodeCommonType(e ast.Expr, imports Imports) (typ *Type, err error) {
 		}
 	default:
 		err = fmt.Errorf("decode type of %s failed, expr type is %v", e, reflect.TypeOf(e))
+	}
+	return
+}
+
+func isBuiltin(v string) (ok bool) {
+	switch v {
+	case "string":
+		ok = true
+	case "int", "int8", "int16", "int32", "int64":
+		ok = true
+	case "float32", "float64":
+		ok = true
+	case "bool":
+		ok = true
+	case "uint", "uint8", "uint16", "uint32", "uint64":
+		ok = true
+	case "complex64", "complex128":
+		ok = true
+	default:
+		ok = false
 	}
 	return
 }

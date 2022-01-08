@@ -19,6 +19,8 @@ package codes_test
 import (
 	"fmt"
 	"github.com/aacfactory/fnc/codes"
+	"net/url"
+	"path/filepath"
 	"testing"
 )
 
@@ -34,4 +36,15 @@ func TestNewFileSet(t *testing.T) {
 			fmt.Println(key, s)
 		}
 	}
+}
+
+func TestURL(t *testing.T) {
+	s := "env://FOO.pub"
+	r, rErr := url.Parse(s)
+	if rErr != nil {
+		fmt.Println(rErr)
+		return
+	}
+	fmt.Println("s", r.Scheme, "h", r.Host, "p", r.Path)
+	fmt.Println(filepath.Join(r.Host, r.Path))
 }
