@@ -18,7 +18,6 @@ package codes
 
 import (
 	"fmt"
-	"github.com/aacfactory/gcg"
 	"go/ast"
 	"reflect"
 	"strings"
@@ -245,30 +244,6 @@ type Type struct {
 	Struct *Struct
 	X      *Type // if map, x is key
 	Y      *Type // if map, y is value
-}
-
-func (t *Type) MapToDocCode(objects map[string]string) (v gcg.Code, err error) {
-	x := gcg.Statements()
-	if _, has := objects[t.ObjectKey()]; has {
-		return
-	}
-	objects[t.ObjectKey()] = t.ObjectKey()
-
-	if t.IsArray() {
-		y, yErr := t.X.MapToDocCode(objects)
-		if yErr != nil {
-			err = yErr
-			return
-		}
-		x.Token(fmt.Sprintf("%s := fns.ArrayObjectDocument(\"%s\", \"%s\", \"%s\", %s)", t.ObjectKey(), t.ObjectKey(), t.))
-	} else if t.IsMap() {
-
-	} else if t.IsStar() {
-
-	} else if t.IsStruct() {
-
-	}
-	return
 }
 
 func (t *Type) ObjectKey() (v string) {

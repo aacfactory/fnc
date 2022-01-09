@@ -457,60 +457,10 @@ func (svc *Service) generateFileServiceDocument() (code gcg.Code, err error) {
 	v.Name("Document")
 	v.Receiver("s", gcg.Star().Ident("service"))
 	v.AddResult("doc", gcg.Star().QualifiedIdent(gcg.NewPackage("github.com/aacfactory/fns"), "ServiceDocument"))
-	// todo
+
 	body := gcg.Statements()
 	if len(svc.fns) > 0 {
-		objects := make(map[string]string)
-		body.Ident("doc").Space().Equal().Space().Token(fmt.Sprintf("fns.NewServiceDocument(namespace, \"%s\")", svc.Description())).Line()
-		for _, fn := range svc.fns {
-			fnConstName, _ := fn.NameToConstName()
-			body.Comments("// " + fnConstName)
-			body.Token(fmt.Sprintf("%sDoc := fns.NewFnDocument(\"%s\", \"%s\", \"%s\", %v, %v)", fnConstName, fn.Name(), fn.Title(), fn.Description(), fn.HasAuthorization(), fn.HasDeprecated())).Line()
-			if fn.HasParam() {
-				if fn.Param.Type.IsBuiltin() {
-					doc, docErr := fn.Param.MapToDocCode(fmt.Sprintf("%sArgDoc", fnConstName))
-					if docErr != nil {
-						err = docErr
-						return
-					}
-					body.Add(doc)
-					body.Token(fmt.Sprintf("%sDoc.Argument = %sArgDoc", fnConstName, fnConstName)).Line()
-				} else {
-					// todo: use struct map to code, delete type map to code
-					objectKey := fn.Param.Type.ObjectKey()
-					typeCode, typeCodeErr := fn.Param.Type.MapToDocCode(objects)
-					if typeCodeErr != nil {
-						err = typeCodeErr
-						return
-					}
-					body.Add(typeCode)
-					body.Token(fmt.Sprintf("%sDoc.Argument = %s", fnConstName, objectKey)).Line()
-				}
-
-			}
-			if fn.HasResult() {
-				if fn.Result.Type.IsBuiltin() {
-					doc, docErr := fn.Result.MapToDocCode(fmt.Sprintf("%sResultDoc", fnConstName))
-					if docErr != nil {
-						err = docErr
-						return
-					}
-					body.Add(doc)
-					body.Token(fmt.Sprintf("%sDoc.Result = %sResultDoc", fnConstName, fnConstName)).Line()
-				} else {
-					objectKey := fn.Result.Type.ObjectKey()
-					typeCode, typeCodeErr := fn.Result.Type.MapToDocCode(objects)
-					if typeCodeErr != nil {
-						err = typeCodeErr
-						return
-					}
-					body.Add(typeCode)
-					body.Token(fmt.Sprintf("%sDoc.Result = %s", fnConstName, objectKey)).Line()
-				}
-
-			}
-			body.Token("doc.AddFn(*fnDoc)").Line()
-		}
+		// todo
 	}
 	body.Return()
 	v.Body(body)
