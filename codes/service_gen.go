@@ -389,9 +389,9 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 					if len(txOpts) > 1 {
 						sqlISO = strings.TrimSpace(txOpts[1])
 					}
-					body.Tab().Tab().Token(fmt.Sprintf("txBegErr := sql.TxBegin(ctx, sql.TxOption(\"%s\", %s)", sqlTimeout, sqlISO), gcg.NewPackage("github.com/aacfactory/fns-contrib/databases/sql")).Line()
+					body.Tab().Tab().Token(fmt.Sprintf("txBegErr := sql.TxBeginWithOption(ctx, sql.TxOption(\"%s\", %s)", sqlTimeout, sqlISO), gcg.NewPackage("github.com/aacfactory/fns-contrib/databases/sql")).Line()
 				} else {
-					body.Tab().Tab().Token("txBegErr := sql.TxBegin(ctx, sql.DefaultTxOption())", gcg.NewPackage("github.com/aacfactory/fns-contrib/databases/sql")).Line()
+					body.Tab().Tab().Token("txBegErr := sql.TxBegin(ctx)", gcg.NewPackage("github.com/aacfactory/fns-contrib/databases/sql")).Line()
 				}
 				body.Tab().Tab().Token("if txBegErr != nil {").Line()
 				body.Tab().Tab().Tab().Token("err = errors.Warning(\"begin sql tx failed\").WithCause(txBegErr)").Line()
