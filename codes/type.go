@@ -18,9 +18,10 @@ package codes
 
 import (
 	"fmt"
+	"github.com/aacfactory/cases"
+	"github.com/aacfactory/gcg"
 	"go/ast"
 	"reflect"
-	"strings"
 )
 
 func NewType(e ast.Expr, pkgPath string, imports Imports, mod *Module) (typ *Type, err error) {
@@ -248,8 +249,7 @@ type Type struct {
 
 func (t *Type) ObjectKey() (v string) {
 	if t.IsStruct() {
-		v = strings.ReplaceAll(t.Struct.Key(), "/", "_")
-		v = strings.ReplaceAll(v, ".", "_")
+		v = t.Struct.ObjectKey()
 		return
 	}
 	if t.IsStar() {
@@ -258,6 +258,70 @@ func (t *Type) ObjectKey() (v string) {
 	}
 	if t.IsArray() {
 		v = t.X.ObjectKey() + "_array"
+		atoms, _ := cases.Snake().Parse(v)
+		v = cases.LowerCamel().Format(atoms)
+		return
+	}
+	return
+}
+
+func (t *Type) generateObject() (code *gcg.Statement) {
+	code = gcg.Statements()
+	if t.IsBuiltin() {
+		switch t.Indent {
+		case "string":
+			code.Token("fns.StringObjectDocument()")
+		case "bool":
+			code.Token("fns.BoolObjectDocument()")
+		case "int", "int64", "uint", "uint32", "uint64":
+			code.Token("fns.IntObjectDocument()")
+		case "int32", "int8", "int16", "uint8", "uint16":
+			code.Token("fns.Int32ObjectDocument()")
+		case "float32":
+			code.Token("fns.Float32ObjectDocument()")
+		case "float64":
+			code.Token("fns.Float64ObjectDocument()")
+		default:
+			code.Token("fns.JsonRawObjectDocument()")
+		}
+		return
+	}
+	if t.IsTime() || t.IsFnsJsonTime() {
+		code.Token("fns.DateTimeObjectDocument()")
+		return
+	}
+	if t.IsFnsJsonDate() {
+		code.Token("fns.DateObjectDocument()")
+		return
+	}
+	if t.IsFnsEmpty() {
+		code.Token("fns.EmptyObjectDocument()")
+		return
+	}
+	if t.IsFnsJsonObject() || t.IsFnsJsonArray() || t.IsFnsJsonRawMessage() {
+		code.Token("fns.JsonRawObjectDocument()")
+		return
+	}
+	if t.IsStruct() {
+		code.Add(t.Struct.generateObject())
+		return
+	}
+	if t.IsStar() {
+		code.Add(t.X.Struct.generateObject())
+		return
+	}
+	if t.IsArray() {
+		code.Token("fns.ArrayObjectDocument(").Line()
+		code.Token(fmt.Sprintf("\"\", \"\", \"\",")).Line()
+		code.Add(t.X.generateObject()).Symbol(",").Line()
+		code.Symbol(")")
+		return
+	}
+	if t.IsMap() {
+		code.Token("fns.MapObjectDocument(").Line()
+		code.Token(fmt.Sprintf("\"\", \"\", \"\",")).Line()
+		code.Add(t.Y.generateObject()).Symbol(",").Line()
+		code.Symbol(")")
 		return
 	}
 	return
@@ -368,6 +432,16 @@ func (t *Type) IsFnsJsonRawMessage() bool {
 func (t *Type) IsFnsJsonObject() bool {
 	if t.IsStar() {
 		return t.X.Indent == "github.com/aacfactory/json.Object"
+	}
+	return false
+}
+
+func (t *Type) IsFnsEmpty() bool {
+	if t.IsStruct() && t.Indent == "github.com/aacfactory/fns.Empty" {
+
+	}
+	if t.IsStar() {
+		return t.X.Indent == "github.com/aacfactory/fns.Empty"
 	}
 	return false
 }
@@ -554,22 +628,37 @@ func tryDecodeCommonType(e ast.Expr, imports Imports) (typ *Type, err error) {
 				Y: nil,
 			}
 		case "github.com/aacfactory/fns":
-			if structName != "Context" {
+			if structName == "Context" {
+				typ = &Type{
+					Kind:   "struct",
+					Indent: "github.com/aacfactory/fns.Context",
+					Import: _import,
+					Struct: &Struct{
+						Package:     "github.com/aacfactory/fns",
+						Name:        "Context",
+						Fields:      nil,
+						Annotations: nil,
+					},
+					X: nil,
+					Y: nil,
+				}
+			} else if structName == "Empty" {
+				typ = &Type{
+					Kind:   "struct",
+					Indent: "github.com/aacfactory/fns.Empty",
+					Import: _import,
+					Struct: &Struct{
+						Package:     "github.com/aacfactory/fns",
+						Name:        "Empty",
+						Fields:      nil,
+						Annotations: nil,
+					},
+					X: nil,
+					Y: nil,
+				}
+			} else {
 				err = fmt.Errorf("decode type of %s failed, expr type is %v", e, reflect.TypeOf(e))
 				return
-			}
-			typ = &Type{
-				Kind:   "struct",
-				Indent: "github.com/aacfactory/fns.Context",
-				Import: _import,
-				Struct: &Struct{
-					Package:     "github.com/aacfactory/fns",
-					Name:        "Context",
-					Fields:      nil,
-					Annotations: nil,
-				},
-				X: nil,
-				Y: nil,
 			}
 		default:
 

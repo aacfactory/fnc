@@ -60,7 +60,6 @@ func main() {
 	app.Flags = []cli.Flag{
 		&cli.StringSliceFlag{
 			Name:     "plugin",
-			Aliases:  []string{"p"},
 			EnvVars:  []string{"FNC_PLUGIN"},
 			Usage:    "add some plugins such as http",
 			Required: false,

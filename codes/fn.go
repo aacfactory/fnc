@@ -29,29 +29,13 @@ type FnField struct {
 	Type   *Type
 }
 
-// prefix: param | result,
-func (x *FnField) MapToDocCode(prefix string) (v gcg.Code, err error) {
-	if x.Type.IsBuiltin() {
-		token := ""
-		switch x.Type.Indent {
-		case "string":
-			token = fmt.Sprintf("fns.StringObjectDocument(\"%s\", \"%s\", \"%s\")", x.Name, x.Title(), x.Description())
-		case "bool":
-			token = fmt.Sprintf("fns.BoolObjectDocument(\"%s\", \"%s\", \"%s\")", x.Name, x.Title(), x.Description())
-		case "int":
-			token = fmt.Sprintf("fns.IntObjectDocument(\"%s\", \"%s\", \"%s\")", x.Name, x.Title(), x.Description())
-		case "int64":
-			token = fmt.Sprintf("fns.Int64ObjectDocument(\"%s\", \"%s\", \"%s\")", x.Name, x.Title(), x.Description())
-		case "float32":
-			token = fmt.Sprintf("fns.Float32ObjectDocument(\"%s\", \"%s\", \"%s\")", x.Name, x.Title(), x.Description())
-		case "float64":
-			token = fmt.Sprintf("fns.Float64ObjectDocument(\"%s\", \"%s\", \"%s\")", x.Name, x.Title(), x.Description())
-		default:
-			err = fmt.Errorf("type %s does not support for param", x.Type.CodeString())
-			return
-		}
-		v = gcg.Token(fmt.Sprintf("%s.Argument = %s", prefix, token)).Line()
-	}
+func (x *FnField) key() (v string) {
+	v = x.Type.ObjectKey()
+	return
+}
+
+func (x *FnField) generateObjectDocument() (code gcg.Code) {
+	code = x.Type.generateObject()
 	return
 }
 

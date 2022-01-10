@@ -312,7 +312,7 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 	v.AddParam("fn", gcg.Ident("string"))
 	v.AddParam("argument", gcg.QualifiedIdent(gcg.NewPackage("github.com/aacfactory/fns"), "Argument"))
 	v.AddResult("v", gcg.Token("interface{}"))
-	v.AddParam("err", gcg.QualifiedIdent(gcg.NewPackage("github.com/aacfactory/errors"), "CodeError"))
+	v.AddResult("err", gcg.QualifiedIdent(gcg.NewPackage("github.com/aacfactory/errors"), "CodeError"))
 	body := gcg.Statements()
 	body.Tab().Token("switch fn {").Line()
 	for _, fn := range fns {
@@ -421,13 +421,13 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 
 		// tx
 		if hasTx {
-			body.Tab().Tab().Token("if err != nil {").Line()
-			body.Tab().Tab().Tab().Token("_ = sql.RollbackTransaction(ctx)").Line()
-			body.Tab().Tab().Token("} else {").Line()
+			body.Tab().Tab().Token("if err == nil {").Line()
 			body.Tab().Tab().Tab().Token("txCmtErr := sql.CommitTransaction(ctx)").Line()
 			body.Tab().Tab().Tab().Token("if txCmtErr != nil {").Line()
 			body.Tab().Tab().Tab().Tab().Token("err = errors.Warning(\"commit sql tx failed\").WithCause(txCmtErr)").Line()
 			body.Tab().Tab().Tab().Tab().Token("return").Line()
+			body.Tab().Tab().Token("} else {").Line()
+			body.Tab().Tab().Tab().Token("_ = sql.RollbackTransaction(ctx)").Line()
 			body.Tab().Tab().Tab().Token("}").Line()
 			body.Tab().Tab().Token("}").Line()
 		}
@@ -460,7 +460,25 @@ func (svc *Service) generateFileServiceDocument() (code gcg.Code, err error) {
 
 	body := gcg.Statements()
 	if len(svc.fns) > 0 {
-		// todo
+		// service
+		body.Token(fmt.Sprintf("doc = fns.NewServiceDocument(namespace, \"%s\")", svc.Description())).Line().Line()
+		// fn
+		i := 0
+		for _, fn := range svc.fns {
+			body.Token(fmt.Sprintf("fn%d := fns.NewFnDocument(\"%s\", \"%s\", \"%s\", %v, %v)", i, fn.Name(), fn.Title(), fn.Description(), fn.HasAuthorization(), fn.HasDeprecated())).Line()
+			if fn.Param != nil {
+				body.Token(fmt.Sprintf("fn%d.SetArgument(", i)).Line()
+				body.Add(fn.Param.generateObjectDocument()).Symbol(",")
+				body.Line().Token(")").Line()
+			}
+			if fn.Result != nil {
+				body.Token(fmt.Sprintf("fn%d.SetResult(", i)).Line()
+				body.Add(fn.Result.generateObjectDocument()).Symbol(",")
+				body.Line().Token(")").Line()
+			}
+			body.Token(fmt.Sprintf("doc.AddFn(fn%d)", i)).Line().Line()
+			i++
+		}
 	}
 	body.Return()
 	v.Body(body)

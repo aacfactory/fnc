@@ -18,6 +18,8 @@ package codes
 
 import (
 	"fmt"
+	"github.com/aacfactory/cases"
+	"github.com/aacfactory/gcg"
 	"go/ast"
 	"strings"
 )
@@ -70,6 +72,7 @@ func findStructInProgram(pkgPath string, name string, mod *Module) (v *Struct, h
 	}
 	var srcFile *ast.File
 	var spec *ast.TypeSpec
+	doc := ""
 	for _, file := range pkg.Files {
 		for _, decl := range file.Decls {
 			genDecl, genDeclOk := decl.(*ast.GenDecl)
@@ -81,6 +84,9 @@ func findStructInProgram(pkgPath string, name string, mod *Module) (v *Struct, h
 				continue
 			}
 			if typeSpec.Name.Name == name {
+				if genDecl != nil {
+					doc = genDecl.Doc.Text()
+				}
 				srcFile = file
 				spec = typeSpec
 				break
@@ -95,10 +101,6 @@ func findStructInProgram(pkgPath string, name string, mod *Module) (v *Struct, h
 		return
 	}
 	imports := NewImports(srcFile)
-	doc := ""
-	if spec.Doc != nil {
-		doc = spec.Doc.Text()
-	}
 	v = &Struct{
 		Package:     pkgPath,
 		Name:        name,
@@ -124,9 +126,8 @@ func findStructInProgram(pkgPath string, name string, mod *Module) (v *Struct, h
 				continue
 			}
 			annotations := make(map[string]string)
-			fieldDoc := ""
 			if fieldSpec.Doc != nil {
-				annotations = getAnnotations(fieldDoc)
+				annotations = getAnnotations(fieldSpec.Doc.Text())
 			}
 			// kind && type
 			typ, typeErr := NewType(fieldSpec.Type, pkgPath, imports, mod)
@@ -154,8 +155,51 @@ type Struct struct {
 	Annotations map[string]string
 }
 
+func (s Struct) Title() (title string) {
+	v, has := s.Annotations["title"]
+	if has {
+		title = v
+		return
+	}
+	return
+}
+
+func (s Struct) Description() (description string) {
+	v, has := s.Annotations["description"]
+	if has {
+		description = v
+		return
+	}
+	return
+}
+
 func (s Struct) Key() (key string) {
 	key = s.Package + "." + s.Name
+	return
+}
+
+func (s Struct) ObjectKey() (v string) {
+	v = strings.ReplaceAll(s.Key(), "/", "_")
+	v = strings.ReplaceAll(v, ".", "_")
+	atoms, _ := cases.Snake().Parse(v)
+	v = cases.LowerCamel().Format(atoms)
+	return
+}
+
+func (s Struct) generateObject() (code *gcg.Statement) {
+	code = gcg.Statements()
+	code.Token(fmt.Sprintf("fns.StructObjectDocument(\"%s\", \"%s\", \"%s\", \"%s\")", s.Package, s.Name, s.Title(), s.Description()))
+	if s.Fields != nil && len(s.Fields) > 0 {
+		code.Token(".").Line()
+		i := 0
+		for _, field := range s.Fields {
+			i++
+			code.Add(field.generateObject())
+			if i != len(s.Fields) {
+				code.Token(".").Line()
+			}
+		}
+	}
 	return
 }
 
@@ -172,7 +216,6 @@ func (x *Field) Title() (title string) {
 		title = v
 		return
 	}
-	title = x.Type.Struct.Key()
 	return
 }
 
@@ -182,5 +225,86 @@ func (x *Field) Description() (description string) {
 		description = v
 		return
 	}
+	return
+}
+
+func (x *Field) Validation() (required bool, validation string) {
+	v, has := x.Tag["validate"]
+	if has {
+		required = strings.Contains(v, "required")
+		message := x.Tag["message"]
+		validation = fmt.Sprintf("validate:\"%s\" message:\"%s\"", v, message)
+		return
+	}
+	return
+}
+
+func (x *Field) Deprecated() (deprecated bool) {
+	v, has := x.Annotations["deprecated"]
+	if has {
+		deprecated = v == "true"
+		return
+	}
+	return
+}
+
+func (x *Field) Enum() (enum string) {
+	v, has := x.Annotations["enum"]
+	if has {
+		enum = v
+		return
+	}
+	return
+}
+
+func (x *Field) generateObject() (code *gcg.Statement) {
+	code = gcg.Statements()
+	key, hasKey := x.Tag["json"]
+	if !hasKey {
+		key = x.Name
+	} else {
+		keyItems := strings.Split(key, ",")
+		if keyItems[0] == "-" {
+			return
+		}
+		key = keyItems[0]
+	}
+	if key == "" {
+		return
+	}
+
+	fc := x.Type.generateObject()
+	if x.Title() != "" {
+		fc.Token(fmt.Sprintf(".SetTitle(\"%s\")", x.Title()))
+	}
+	if x.Description() != "" {
+		fc.Token(fmt.Sprintf(".SetDescription(\"%s\")", x.Description()))
+	}
+	require, validation := x.Validation()
+	if require {
+		fc.Token(fmt.Sprintf(".AsRequired(`%s`)", validation))
+	}
+	if x.Deprecated() {
+		fc.Token(fmt.Sprintf(".AsDeprecated()"))
+	}
+	// AddEnum
+	enum := x.Enum()
+	if enum != "" && x.Type.IsBuiltin() {
+		enums := ""
+		enumItems := strings.Split(enum, ",")
+		if x.Type.Indent == "string" {
+			for _, item := range enumItems {
+				enums = enums + "," + `"` + item + `"`
+			}
+			enums = enums[1:]
+		} else {
+			for _, item := range enumItems {
+				enums = "," + item
+			}
+			enums = enums[1:]
+		}
+		fc.Token(fmt.Sprintf(".AddEnum(%s)", enums))
+	}
+	code.Token(fmt.Sprintf("AddProperty(\"%s\", ", key)).Line().Add(fc).Token(",").Line().Token(")")
 	return
 }

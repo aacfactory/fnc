@@ -1,8 +1,8 @@
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/aacfactory/cases v1.1.0 h1:oY7wSX57PJav72ZDFmmdmWPrEUXjc5zh8ckDAJM4iSQ=
 github.com/aacfactory/cases v1.1.0/go.mod h1:Utk93dgZ/xXw2GTSM1QU2y1+R4LDEUVel2LtO09Mxt0=
-github.com/aacfactory/gcg v1.0.0 h1:GI6WCeXUhl3f0HXYE+wY6QQf8+KSDznEmBICkTKN/xU=
-github.com/aacfactory/gcg v1.0.0/go.mod h1:d0Nz5YQGvlGhB9pSaruNdmbEXitRIM++SuKU5duLqHA=
+github.com/aacfactory/gcg v1.0.3 h1:Pxb7VSh3Jc6Gmy9dsMy8L7BoUdfjKe50yAaG9O965fA=
+github.com/aacfactory/gcg v1.0.3/go.mod h1:d0Nz5YQGvlGhB9pSaruNdmbEXitRIM++SuKU5duLqHA=
 github.com/aacfactory/logs v1.2.0 h1:5DG7+zU6GyTt+CWat6AVOfNhEXLPDJuUruqGFX+bcSo=
 github.com/aacfactory/logs v1.2.0/go.mod h1:pfufsqd+gIZwLN+cT75AVCed5uXipdRep/4vxSmt4LM=
 github.com/coreos/go-systemd/v22 v22.3.2/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
