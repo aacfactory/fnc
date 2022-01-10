@@ -28,7 +28,7 @@ import (
 const (
 	Name      = "FNC"
 	Version   = "v1.0.0"
-	Usage     = "fnc --plugin={some plugins} "
+	Usage     = "fnc -p={fns project dir} "
 	Copyright = `Copyright 2021 Wang Min Xiang
 
 Licensed under the Apache License, Version 2.0 (the "License");
