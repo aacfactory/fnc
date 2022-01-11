@@ -251,19 +251,40 @@ func (svc *Service) generateFileServiceProxy(fns []*Fn) (code gcg.Code, err erro
 }
 
 func (svc *Service) generateFileService() (code gcg.Code, err error) {
+	stmt := gcg.Statements()
 	v := gcg.Func()
 	v.Name("Service")
 	v.AddResult("v", gcg.QualifiedIdent(gcg.NewPackage("github.com/aacfactory/fns"), "Service"))
 	body := gcg.Statements()
-	body.Tab().Ident("v").Space().Equal().Space().Token("&service{}").Line()
+	body.Tab().Ident("v").Space().Equal().Space().Token("&service{").Line()
+	body.Tab().Tab().Token("fns.NewAbstractService(),").Line()
+	body.Tab().Token("}").Line()
 	body.Tab().Return()
 	v.Body(body)
-	code = v.Build()
+	stmt.Add(v.Build()).Line()
+
+	vWithOption := gcg.Func()
+	vWithOption.Name("ServiceWithOption")
+	vWithOption.AddParam("option", gcg.QualifiedIdent(gcg.NewPackage("github.com/aacfactory/fns"), "ServiceOption"))
+	vWithOption.AddResult("v", gcg.QualifiedIdent(gcg.NewPackage("github.com/aacfactory/fns"), "Service"))
+	bodyWithOption := gcg.Statements()
+	bodyWithOption.Tab().Ident("v").Space().Equal().Space().Token("&service{").Line()
+	bodyWithOption.Tab().Tab().Token("fns.NewAbstractServiceWithOption(option),").Line()
+	bodyWithOption.Tab().Token("}").Line()
+	bodyWithOption.Tab().Return()
+	vWithOption.Body(bodyWithOption)
+	stmt.Add(vWithOption.Build()).Line()
+
+	code = stmt
 	return
 }
 
 func (svc *Service) generateFileServiceStruct() (code gcg.Code, err error) {
-	code = gcg.Type("service", gcg.Struct().Build())
+	v := gcg.Statements()
+	v.Token("type service struct {").Line()
+	v.Tab().Token("fns.AbstractService").Line()
+	v.Token("}").Line()
+	code = v
 	return
 }
 
@@ -297,9 +318,12 @@ func (svc *Service) generateFileServiceBuild() (code gcg.Code, err error) {
 	v := gcg.Func()
 	v.Name("Build")
 	v.Receiver("s", gcg.Star().Ident("service"))
-	v.AddParam("_", gcg.QualifiedIdent(gcg.NewPackage("github.com/aacfactory/configuares"), "Config"))
+	v.AddParam("config", gcg.QualifiedIdent(gcg.NewPackage("github.com/aacfactory/configuares"), "Config"))
 	v.AddResult("err", gcg.Error())
-	v.Body(gcg.Return())
+	body := gcg.Statements()
+	body.Tab().Token("err = s.AbstractService.Build(config)").Line()
+	body.Return()
+	v.Body(body)
 	code = v.Build()
 	return
 }
@@ -322,6 +346,7 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 			return
 		}
 		body.Tab().Token(fmt.Sprintf("case %s:", key)).Line()
+		body.Tab().Tab().Token("ctx = fns.WithServiceMeta(ctx, s.AbstractService.Meta())").Line()
 		body.Tab().Tab().Token(fmt.Sprintf("ctx = fns.WithFn(ctx, %s)", key)).Line()
 		// authorization
 		if fn.HasAuthorization() {
