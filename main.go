@@ -87,12 +87,12 @@ func main() {
 			return
 		}
 		scanErr := p.Scan()
-		if scanErr == nil {
+		if scanErr != nil {
 			err = scanErr
 			return
 		}
 		generateErr := p.Generate()
-		if generateErr == nil {
+		if generateErr != nil {
 			err = generateErr
 			return
 		}
