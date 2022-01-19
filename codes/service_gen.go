@@ -402,6 +402,9 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 
 		// todo: cache
 
+		// group
+		body.Tab().Tab().Token("// group").Line()
+		body.Tab().Tab().Token("v, err = s.HandleInGroup(ctx, fn, argument, func() (v interface{}, err errors.CodeError) {").Line()
 		// tx
 		txKind, txOpts, hasTx := fn.HasTx()
 		if hasTx {
@@ -442,7 +445,6 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 				body.Tab().Tab().Token(fmt.Sprintf("err = %s(ctx)", fn.FuncName)).Line()
 			}
 		}
-		// todo: cache
 
 		// tx
 		if hasTx {
@@ -456,6 +458,10 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 			body.Tab().Tab().Tab().Token("}").Line()
 			body.Tab().Tab().Token("}").Line()
 		}
+		body.Tab().Tab().Token("return").Line()
+		body.Tab().Tab().Token("})").Line()
+
+		// todo: cache
 
 	}
 	body.Tab().Token("default:").Line()
