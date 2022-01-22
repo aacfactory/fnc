@@ -27,7 +27,7 @@ import (
 
 const (
 	Name      = "FNC"
-	Version   = "v1.4.0"
+	Version   = "v1.5.0"
 	Usage     = "fnc -p={fns project dir} "
 	Copyright = `Copyright 2021 Wang Min Xiang
 

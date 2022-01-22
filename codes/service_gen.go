@@ -368,7 +368,10 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 			body.Tab().Tab().Tab().Token("err = errors.Unauthorized(\"authorization is invalid\").WithCause(authorizationErr)").Line()
 			body.Tab().Tab().Tab().Token("return").Line()
 			body.Tab().Tab().Token("}").Line()
-			// permission
+		}
+		// permission
+		if fn.HasPermission() {
+
 			body.Tab().Tab().Token("// permission").Line()
 			body.Tab().Tab().Token("permissionErr := ctx.App().Permissions().Validate(ctx, namespace, fn)").Line()
 			body.Tab().Tab().Token("if permissionErr != nil {").Line()
