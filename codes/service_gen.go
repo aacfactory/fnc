@@ -318,10 +318,11 @@ func (svc *Service) generateFileServiceBuild() (code gcg.Code, err error) {
 	v := gcg.Func()
 	v.Name("Build")
 	v.Receiver("s", gcg.Star().Ident("service"))
+	v.AddParam("ctx", gcg.QualifiedIdent(gcg.NewPackage("github.com/aacfactory/fns"), "Context"))
 	v.AddParam("config", gcg.QualifiedIdent(gcg.NewPackage("github.com/aacfactory/configuares"), "Config"))
 	v.AddResult("err", gcg.Error())
 	body := gcg.Statements()
-	body.Tab().Token("err = s.AbstractService.Build(config)").Line()
+	body.Tab().Token("err = s.AbstractService.Build(ctx, config)").Line()
 	body.Return()
 	v.Body(body)
 	code = v.Build()
@@ -502,6 +503,9 @@ func (svc *Service) generateFileServiceDocument() (code gcg.Code, err error) {
 		// fn
 		i := 0
 		for _, fn := range svc.fns {
+			if fn.IsInternal() {
+				continue
+			}
 			body.Token(fmt.Sprintf("fn%d := fns.NewFnDocument(\"%s\", \"%s\", \"%s\", %v, %v)", i, fn.Name(), fn.Title(), fn.Description(), fn.HasAuthorization(), fn.HasDeprecated())).Line()
 			if fn.Param != nil {
 				body.Token(fmt.Sprintf("fn%d.SetArgument(", i)).Line()
