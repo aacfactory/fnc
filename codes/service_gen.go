@@ -346,6 +346,12 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 			return
 		}
 		body.Tab().Token(fmt.Sprintf("case %s:", key)).Line()
+		if fn.IsInternal() {
+			body.Tab().Tab().Token("if !ctx.InternalRequested() {").Line()
+			body.Tab().Tab().Tab().Token(fmt.Sprintf("err = errors.NotAcceptable(\"%s is internal\")", fn.Name())).Line()
+			body.Tab().Tab().Tab().Token("return").Line()
+			body.Tab().Tab().Token("}").Line()
+		}
 		body.Tab().Tab().Token("ctx = fns.WithServiceMeta(ctx, s.AbstractService.Meta())").Line()
 		body.Tab().Tab().Token(fmt.Sprintf("ctx = fns.WithFn(ctx, %s)", key)).Line()
 		// authorization

@@ -4,7 +4,7 @@ fns generators
 
 ## Install
 ```bash
-go install github.com/aacfactory/fnc@v1.2.0
+go install github.com/aacfactory/fnc@v1.3.0
 ```
 ## Usage
 Use Command

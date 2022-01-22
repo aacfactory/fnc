@@ -111,13 +111,18 @@ func (f *Fn) HasPermission() (v bool) {
 	return
 }
 
+func (f *Fn) IsInternal() (v bool) {
+	v = f.Annotations["internal"] == "true"
+	return
+}
+
 func (f *Fn) HasTx() (kind string, opts []string, has bool) {
-	kind = f.Annotations["tx"]
+	kind = f.Annotations["transactional"]
 	has = kind != ""
 	if has {
 		optIdx := strings.Index(kind, ":")
 		if optIdx > 0 {
-			// @tx sql:1s
+			// @transactional sql:1s
 			kind = kind[0:optIdx]
 			opt := kind[optIdx+1:]
 			opts = strings.Split(opt, ",")
