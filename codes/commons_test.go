@@ -28,11 +28,10 @@ func TestGetAnnotations(t *testing.T) {
 @sqlTX true
 @authorization true
 @permission true
-@description >>>
+@description >>> dsdd
 bbb
 aaa
-<<<
-xxx`
+<<<`
 	annotations := getAnnotations(doc)
 	for key, value := range annotations {
 		fmt.Println(key, value)

@@ -198,16 +198,20 @@ func getAnnotations(doc string) (v map[string]string) {
 		line = strings.TrimSpace(line)
 		if readBlock {
 			if line == "<<<" {
-				if len(block) > 1 {
-					block = block[1:]
-				}
+				//if len(block) > 1 {
+				//	block = block[1:]
+				//}
 				v[blockName] = block
 				readBlock = false
 				blockName = ""
 				block = ""
 				continue
 			}
-			block = block + "\n" + line
+			if block == "" {
+				block = line
+			} else {
+				block = block + "\\n" + line
+			}
 			continue
 		}
 		if strings.Index(line, "@") != 0 {
@@ -223,6 +227,7 @@ func getAnnotations(doc string) (v map[string]string) {
 		if val == ">>>" {
 			readBlock = true
 			blockName = key
+			block = strings.TrimSpace(line[strings.Index(line, ">>>")+3:])
 			continue
 		}
 		v[key] = val
