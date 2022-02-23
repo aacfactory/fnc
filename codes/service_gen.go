@@ -462,9 +462,8 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 			body.Tab().Tab().Tab().Token("txCmtErr := sql.CommitTransaction(ctx)").Line()
 			body.Tab().Tab().Tab().Token("if txCmtErr != nil {").Line()
 			body.Tab().Tab().Tab().Tab().Token("err = errors.Warning(\"commit sql tx failed\").WithCause(txCmtErr)").Line()
+			body.Tab().Tab().Tab().Tab().Token("_ = sql.RollbackTransaction(ctx)").Line()
 			body.Tab().Tab().Tab().Tab().Token("return").Line()
-			body.Tab().Tab().Token("} else {").Line()
-			body.Tab().Tab().Tab().Token("_ = sql.RollbackTransaction(ctx)").Line()
 			body.Tab().Tab().Tab().Token("}").Line()
 			body.Tab().Tab().Token("}").Line()
 		}
