@@ -58,6 +58,17 @@ func (s Imports) FindByName(name string) (v *Import, has bool) {
 	return
 }
 
+func (s Imports) FindByAlias(alias string) (v *Import, has bool) {
+	for _, i := range s {
+		if i.Alias == alias {
+			v = i
+			has = true
+			return
+		}
+	}
+	return
+}
+
 type Import struct {
 	Name  string
 	Alias string

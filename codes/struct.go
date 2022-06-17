@@ -188,7 +188,7 @@ func (s Struct) ObjectKey() (v string) {
 
 func (s Struct) generateObject() (code *gcg.Statement) {
 	code = gcg.Statements()
-	code.Token(fmt.Sprintf("fns.StructObjectDocument(\"%s\", \"%s\", \"%s\", \"%s\")", s.Package, s.Name, s.Title(), s.Description()))
+	code.Token(fmt.Sprintf("documents.Struct(\"%s\", \"%s\", \"%s\", \"%s\")", s.Package, s.Name, s.Title(), s.Description()))
 	if s.Fields != nil && len(s.Fields) > 0 {
 		code.Token(".").Line()
 		i := 0

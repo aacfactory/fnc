@@ -148,7 +148,7 @@ func (f *Fn) NameToConstName() (v string, err error) {
 		return
 	}
 	atoms = append(atoms, "fn")
-	v = cases.LowerCamel().Format(atoms)
+	v = "_" + cases.LowerCamel().Format(atoms)
 	return
 }
 

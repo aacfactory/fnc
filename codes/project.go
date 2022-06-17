@@ -216,20 +216,41 @@ func (p *Project) scanFn(filePkg *Import, imports Imports, decl *ast.FuncDecl) (
 	// check params
 	params := decl.Type.Params
 	if params == nil || !(len(params.List) > 0 && len(params.List) < 3) {
-		err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two params, first must be fns.Context, seconed can be value object struct", name)
+		err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two params, first must be context.Context, seconed can be value object struct", name)
 		return
 	}
-	ctxType, ctxTypeErr := NewType(params.List[0].Type, filePkg.Path, imports, p.mod)
-	if ctxTypeErr != nil || !ctxType.IsFnsContext() {
-		err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two params, first must be fns.Context, seconed can be value object struct", name)
+	param1, p1TypeOk := params.List[0].Type.(*ast.SelectorExpr)
+	if !p1TypeOk {
+		err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two params, first must be context.Context, seconed can be value object struct", name)
 		return
 	}
+	if "Context" != param1.Sel.Name {
+		err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two params, first must be context.Context, seconed can be value object struct", name)
+		return
+	}
+	param1Ident, param1IdentOk := param1.X.(*ast.Ident)
+	if !param1IdentOk {
+		err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two params, first must be context.Context, seconed can be value object struct", name)
+		return
+	}
+	if "context" != param1Ident.Name {
+		ctxImport, hasCtxImport := imports.FindByName(param1Ident.Name)
+		if !hasCtxImport {
+			err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two params, first must be context.Context, seconed can be value object struct", name)
+			return
+		}
+		if ctxImport.Path != "context" {
+			err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two params, first must be context.Context, seconed can be value object struct", name)
+			return
+		}
+	}
+
 	var param *FnField
 	if len(params.List) == 2 {
 		paramName := params.List[1].Names[0].Name
 		paramType, paramTypeErr := NewType(params.List[1].Type, filePkg.Path, imports, p.mod)
 		if paramTypeErr != nil {
-			err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two params, first must be fns.Context, seconed can be value object struct, %v", name, paramTypeErr)
+			err = fmt.Errorf("fnc: scan %s fn failed for fn must has one or two params, first must be context.Context, seconed can be value object struct, %v", name, paramTypeErr)
 			return
 		}
 		if !(paramType.IsArray() || paramType.IsStruct() || paramType.IsStar() || paramType.IsBuiltin()) {

@@ -270,36 +270,36 @@ func (t *Type) generateObject() (code *gcg.Statement) {
 	if t.IsBuiltin() {
 		switch t.Indent {
 		case "string":
-			code.Token("fns.StringObjectDocument()")
+			code.Token("documents.String()")
 		case "bool":
-			code.Token("fns.BoolObjectDocument()")
+			code.Token("documents.Bool()")
 		case "int", "int64", "uint", "uint32", "uint64":
-			code.Token("fns.IntObjectDocument()")
+			code.Token("documents.Int()")
 		case "int32", "int8", "int16", "uint8", "uint16":
-			code.Token("fns.Int32ObjectDocument()")
+			code.Token("documents.Int32()")
 		case "float32":
-			code.Token("fns.Float32ObjectDocument()")
+			code.Token("documents.Float32()")
 		case "float64":
-			code.Token("fns.Float64ObjectDocument()")
+			code.Token("documents.Float64()")
 		default:
-			code.Token("fns.JsonRawObjectDocument()")
+			code.Token("documents.JsonRaw()")
 		}
 		return
 	}
 	if t.IsTime() || t.IsFnsJsonTime() {
-		code.Token("fns.DateTimeObjectDocument()")
+		code.Token("documents.DateTime()")
 		return
 	}
 	if t.IsFnsJsonDate() {
-		code.Token("fns.DateObjectDocument()")
+		code.Token("documents.Date()")
 		return
 	}
 	if t.IsFnsEmpty() {
-		code.Token("fns.EmptyObjectDocument()")
+		code.Token("documents.Empty()")
 		return
 	}
 	if t.IsFnsJsonObject() || t.IsFnsJsonArray() || t.IsFnsJsonRawMessage() {
-		code.Token("fns.JsonRawObjectDocument()")
+		code.Token("documents.JsonRaw()")
 		return
 	}
 	if t.IsStruct() {
@@ -311,14 +311,14 @@ func (t *Type) generateObject() (code *gcg.Statement) {
 		return
 	}
 	if t.IsArray() {
-		code.Token("fns.ArrayObjectDocument(").Line()
+		code.Token("documents.Array(").Line()
 		code.Token(fmt.Sprintf("\"\", \"\", \"\",")).Line()
 		code.Add(t.X.generateObject()).Symbol(",").Line()
 		code.Symbol(")")
 		return
 	}
 	if t.IsMap() {
-		code.Token("fns.MapObjectDocument(").Line()
+		code.Token("documents.Map(").Line()
 		code.Token(fmt.Sprintf("\"\", \"\", \"\",")).Line()
 		code.Add(t.Y.generateObject()).Symbol(",").Line()
 		code.Symbol(")")
@@ -462,7 +462,7 @@ func (t *Type) IsFnsJsonTime() bool {
 }
 
 func (t *Type) IsFnsContext() bool {
-	return t.IsStruct() && t.Indent == "github.com/aacfactory/fns.Context"
+	return t.IsStruct() && t.Indent == "context"
 }
 
 func (t *Type) IsFnsCodeError() bool {
