@@ -75,6 +75,7 @@ func (p *Project) Path() (v string) {
 func (p *Project) Scan() (err error) {
 	for _, info := range p.mod.CreatedPackageInfos() {
 		fns := make([]*Fn, 0, 1)
+		components := make([]*Component, 0, 1)
 		serviceName := ""
 		serviceAnnotations := make(map[string]string)
 		for _, file := range info.Files {
@@ -88,13 +89,16 @@ func (p *Project) Scan() (err error) {
 					continue
 				}
 			}
-			fnsOfFile, scanFnErr := p.scanFile(file)
+			fnsOfFile, componentsOfFile, scanFnErr := p.scanFile(file)
 			if scanFnErr != nil {
 				err = scanFnErr
 				return
 			}
 			if fnsOfFile != nil && len(fnsOfFile) > 0 {
 				fns = append(fns, fnsOfFile...)
+			}
+			if componentsOfFile != nil && len(componentsOfFile) > 0 {
+				components = append(components, componentsOfFile...)
 			}
 		}
 		if serviceName == "" {
@@ -117,6 +121,7 @@ func (p *Project) Scan() (err error) {
 			Imports:     make([]*Import, 0, 1),
 			fns:         make(map[string]*Fn),
 			Annotations: serviceAnnotations,
+			Components:  make(map[string]*Component),
 		}
 		for _, fn := range fns {
 			addErr := service.AddFn(fn)
@@ -125,6 +130,15 @@ func (p *Project) Scan() (err error) {
 				return
 			}
 		}
+		for _, component := range components {
+			addErr := service.AddComponent(component)
+			if addErr != nil {
+				err = addErr
+				return
+			}
+		}
+		// components
+
 		p.services[serviceName] = service
 	}
 	return
@@ -147,7 +161,7 @@ func (p *Project) scanServiceDoc(file *ast.File) (serviceName string, annotation
 	return
 }
 
-func (p *Project) scanFile(file *ast.File) (fns []*Fn, err error) {
+func (p *Project) scanFile(file *ast.File) (fns []*Fn, components []*Component, err error) {
 	if file.Decls == nil {
 		return
 	}
@@ -166,6 +180,7 @@ func (p *Project) scanFile(file *ast.File) (fns []*Fn, err error) {
 	imports := NewImports(file)
 
 	fns = make([]*Fn, 0, 1)
+	components = make([]*Component, 0, 1)
 	for _, decl := range file.Decls {
 		funcDecl, fnOk := decl.(*ast.FuncDecl)
 		if !fnOk {
@@ -179,15 +194,98 @@ func (p *Project) scanFile(file *ast.File) (fns []*Fn, err error) {
 		if funcDecl.Doc == nil {
 			continue
 		}
-		ok, fn, fnErr := p.scanFn(pkg, imports, funcDecl)
+		scannedFn, fn, fnErr := p.scanFn(pkg, imports, funcDecl)
 		if fnErr != nil {
 			err = fnErr
 			return
 		}
-		if ok {
+		if scannedFn {
 			fns = append(fns, fn)
 		}
+		scannedComponent, component, componentErr := p.scanComponent(pkg, imports, funcDecl)
+		if componentErr != nil {
+			err = componentErr
+			return
+		}
+		if scannedComponent {
+			components = append(components, component)
+		}
 	}
+	return
+}
+
+func (p *Project) scanComponent(filePkg *Import, imports Imports, decl *ast.FuncDecl) (ok bool, component *Component, err error) {
+	// doc
+	doc := decl.Doc.Text()
+	annotations := getAnnotations(doc)
+	if len(annotations) == 0 {
+		return
+	}
+	anno, hasName := annotations["component"]
+	if !hasName {
+		return
+	}
+	annoValues := strings.Split(anno, ":")
+	if len(annoValues) != 2 {
+		err = fmt.Errorf("fnc: scan %s componenet failed for invalid annotation, need {component name}:{component struct name}", anno)
+		return
+	}
+	name := strings.TrimSpace(annoValues[0])
+	if name == "" {
+		err = fmt.Errorf("fnc: scan %s componenet failed for invalid annotation, need {component name}:{component struct name}", anno)
+		return
+	}
+	structName := strings.TrimSpace(annoValues[1])
+	if structName == "" {
+		err = fmt.Errorf("fnc: scan %s componenet failed for invalid annotation, need {component name}:{component struct name}", anno)
+		return
+	}
+	loader := decl.Name.Name
+	// no param
+	params := decl.Type.Params
+	if params != nil {
+		if len(params.List) > 0 {
+			err = fmt.Errorf("fnc: scan %s componenet failed for componenet must has no params", name)
+			return
+		}
+	}
+	results := decl.Type.Results
+	// one result
+	if results == nil || len(results.List) != 1 {
+		err = fmt.Errorf("fnc: scan %s componenet failed for componenet must has one results, type must be github.com/aacfactory/fns/service.Component", name)
+		return
+	}
+	result, resultTypeOk := results.List[0].Type.(*ast.SelectorExpr)
+	if !resultTypeOk {
+		err = fmt.Errorf("fnc: scan %s componenet failed for componenet must has one results, type must be github.com/aacfactory/fns/service.Component", name)
+		return
+	}
+	if "Component" != result.Sel.Name {
+		err = fmt.Errorf("fnc: scan %s componenet failed for componenet must has one results, type must be github.com/aacfactory/fns/service.Component", name)
+		return
+	}
+	resultIdent, resultIdentOk := result.X.(*ast.Ident)
+	if !resultIdentOk {
+		err = fmt.Errorf("fnc: scan %s componenet failed for componenet must has one results, type must be github.com/aacfactory/fns/service.Component", name)
+		return
+	}
+	if "service" != resultIdent.Name {
+		ctxImport, hasCtxImport := imports.FindByName(resultIdent.Name)
+		if !hasCtxImport {
+			err = fmt.Errorf("fnc: scan %s componenet failed for componenet must has one results, type must be github.com/aacfactory/fns/service.Component", name)
+			return
+		}
+		if ctxImport.Path != "github.com/aacfactory/fns/service" {
+			err = fmt.Errorf("fnc: scan %s componenet failed for componenet must has one results, type must be github.com/aacfactory/fns/service.Component", name)
+			return
+		}
+	}
+	component = &Component{
+		Name:   name,
+		Loader: loader,
+		Struct: structName,
+	}
+	ok = true
 	return
 }
 

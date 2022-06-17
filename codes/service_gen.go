@@ -18,6 +18,7 @@ package codes
 
 import (
 	"fmt"
+	"github.com/aacfactory/cases"
 	"github.com/aacfactory/gcg"
 	"path/filepath"
 	"strings"
@@ -56,6 +57,15 @@ func (svc *Service) generateFile() (err error) {
 		return
 	}
 	file.AddCode(code)
+
+	if len(svc.Components) > 0 {
+		code, codeErr = svc.generateFileServiceComponents()
+		if codeErr != nil {
+			err = fmt.Errorf("%s service generate failed, %v", svc.Name(), codeErr)
+			return
+		}
+		file.AddCode(code)
+	}
 
 	code, codeErr = svc.generateFileService()
 	if codeErr != nil {
@@ -222,6 +232,49 @@ func (svc *Service) generateFileServiceProxy(fns []*Fn) (code gcg.Code, err erro
 	return
 }
 
+func (svc *Service) generateFileServiceComponents() (code gcg.Code, err error) {
+	stmt := gcg.Statements()
+	for _, component := range svc.Components {
+		v := gcg.Func()
+		v.Name(cases.LowerCamel().Format([]string{"get", "component", component.Name}))
+		v.AddParam("ctx", gcg.QualifiedIdent(gcg.NewPackage("context"), "Context"))
+		structName := component.Struct
+		var resultType gcg.Code
+		var resultStruct string
+		if strings.Contains(structName, ".") {
+			sidx := strings.LastIndexByte(structName, '.')
+			resultStructPkg := structName[0:sidx]
+			resultStructName := structName[sidx+1:]
+			resultType = gcg.Star().QualifiedIdent(gcg.NewPackage(resultStructPkg), resultStructName)
+			fidx := strings.LastIndexByte(structName, '/')
+			resultStruct = structName[fidx+1:]
+		} else {
+			resultType = gcg.Token(fmt.Sprintf("*%s", structName))
+			resultStruct = structName
+		}
+		v.AddResult("v", resultType)
+		body := gcg.Statements()
+		body.Tab().Token(fmt.Sprintf("c, has := service.GetComponent(ctx, \"%s\")", component.Name)).Line()
+		body.Tab().Token("if !has {").Line()
+		body.Tab().Tab().Token("panic(fmt.Sprintf(\"%+v\"")
+		body.Tab().Tab().Token(fmt.Sprintf(", errors.Warning(\"%s: get %s component failed cause not found in context\")))", svc.Name(), component.Name)).Line()
+		body.Tab().Tab().Return().Line()
+		body.Tab().Token("}").Line()
+		body.Tab().Token("ok := false").Line()
+		body.Tab().Token(fmt.Sprintf("v, ok = c.(*%s)", resultStruct)).Line()
+		body.Tab().Token("if !ok {").Line()
+		body.Tab().Tab().Token("panic(fmt.Sprintf(\"%+v\"")
+		body.Tab().Tab().Token(fmt.Sprintf(", errors.Warning(\"%s: get %s component failed cause type is not matched\")))", svc.Name(), component.Name)).Line()
+		body.Tab().Tab().Return().Line()
+		body.Tab().Token("}").Line()
+		body.Tab().Tab().Return()
+		v.Body(body)
+		stmt.Add(v.Build()).Line()
+	}
+	code = stmt
+	return
+}
+
 func (svc *Service) generateFileService() (code gcg.Code, err error) {
 	stmt := gcg.Statements()
 	v := gcg.Func()
@@ -229,7 +282,18 @@ func (svc *Service) generateFileService() (code gcg.Code, err error) {
 	v.AddResult("svc", gcg.QualifiedIdent(gcg.NewPackage("github.com/aacfactory/fns/service"), "Service"))
 	body := gcg.Statements()
 	// todo components
-	body.Tab().Token("components := make([]service.Component, 0, 1)", gcg.NewPackage("github.com/aacfactory/fns/service")).Line()
+	body.Tab().Token("components := []service.Component{", gcg.NewPackage("github.com/aacfactory/fns/service"))
+	if len(svc.Components) > 0 {
+		cidx := 0
+		for _, component := range svc.Components {
+			if cidx > 0 {
+				body.Token(", ")
+			}
+			body.Token(fmt.Sprintf("%s()", component.Loader))
+			cidx++
+		}
+	}
+	body.Token("}").Line()
 	body.Tab().Ident("svc").Space().Equal().Space().Token("&_service_{").Line()
 	body.Tab().Tab().Token("Abstract:service.NewAbstract(").Line()
 	body.Tab().Tab().Tab().Token("_name").Ident(",").Line()

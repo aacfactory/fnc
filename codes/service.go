@@ -21,12 +21,19 @@ import (
 	"sort"
 )
 
+type Component struct {
+	Name   string
+	Loader string
+	Struct string
+}
+
 type Service struct {
 	DirPath     string
 	Package     string
 	Imports     Imports
 	fns         map[string]*Fn
 	Annotations map[string]string
+	Components  map[string]*Component
 }
 
 func (svc *Service) Internal() (v bool) {
@@ -49,6 +56,17 @@ func (svc *Service) Title() (v string) {
 
 func (svc *Service) Description() (v string) {
 	v = svc.Annotations["description"]
+	return
+}
+
+func (svc *Service) AddComponent(c *Component) (err error) {
+	name := c.Name
+	_, exist := svc.Components[name]
+	if exist {
+		err = fmt.Errorf("fnc: %s component in %s is duplicated", name, svc.Name())
+		return
+	}
+	svc.Components[name] = c
 	return
 }
 
