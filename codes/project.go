@@ -442,6 +442,9 @@ func (p *Project) Generate() (err error) {
 			return
 		}
 	}
+	if p.log.DebugEnabled() {
+		p.log.Debug().With("YOU", "GENIUS").Message("fnc: codes generate succeed")
+	}
 	return
 }
 

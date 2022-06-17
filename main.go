@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/aacfactory/fnc/codes"
+	"github.com/aacfactory/fnc/project"
 	"github.com/urfave/cli/v2"
 	"os"
 	"runtime"
@@ -27,8 +28,8 @@ import (
 
 const (
 	Name      = "FNC"
-	Version   = "v1.6.1"
-	Usage     = "fnc -p={fns project dir} "
+	Version   = "v1.8.0"
+	Usage     = "see COMMANDS"
 	Copyright = `Copyright 2021 Wang Min Xiang
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,50 +58,10 @@ func main() {
 		},
 	}
 	app.Copyright = Copyright
-	app.Flags = []cli.Flag{
-		&cli.StringSliceFlag{
-			Name:     "plugin",
-			EnvVars:  []string{"FNC_PLUGIN"},
-			Usage:    "add some plugins such as http",
-			Required: false,
-		},
-		&cli.PathFlag{
-			Name:     "project",
-			Aliases:  []string{"p"},
-			EnvVars:  []string{"FNC_PROJECT"},
-			Usage:    "go project path",
-			Required: true,
-		},
-		&cli.BoolFlag{
-			Name:     "debug",
-			EnvVars:  []string{"FNC_DEBUG"},
-			Usage:    "print debug infos",
-			Required: false,
-		},
+	app.Commands = []*cli.Command{
+		codes.Command,
+		project.Command,
 	}
-	app.Action = func(c *cli.Context) (err error) {
-		projectDir := c.Path("project")
-		debug := c.Bool("debug")
-		p, pErr := codes.NewProject(projectDir, debug)
-		if pErr != nil {
-			err = pErr
-			return
-		}
-		scanErr := p.Scan()
-		if scanErr != nil {
-			err = scanErr
-			return
-		}
-		generateErr := p.Generate()
-		if generateErr != nil {
-			err = generateErr
-			return
-		}
-		// todo plugins
-		// plugins := c.StringSlice("plugin")
-		return
-	}
-
 	if err := app.RunContext(context.Background(), os.Args); err != nil {
 		fmt.Println("fnc", "failed", err)
 	}
