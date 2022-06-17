@@ -21,6 +21,7 @@ import (
 	"github.com/aacfactory/fnc/project/model"
 	"github.com/aacfactory/gcg"
 	"os"
+	"os/exec"
 	"path/filepath"
 )
 
@@ -37,6 +38,12 @@ func createExamples(g model.Generator) (err error) {
 	}
 	err = createExamplesFn(dir)
 	if err != nil {
+		return
+	}
+	codesCmd := exec.Command("fnc", "codes", g.Path)
+	codesCmdErr := codesCmd.Run()
+	if codesCmdErr != nil {
+		err = fmt.Errorf("fnc: create project failed at fnc codes %s, %v", g.Path, codesCmdErr)
 		return
 	}
 	return
