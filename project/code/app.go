@@ -14,15 +14,27 @@
  * limitations under the License.
  */
 
-package project
+package code
 
-type Generator struct {
-	Name   string
-	Path   string
-	Module Module
-}
+import (
+	"github.com/aacfactory/fnc/project/model"
+)
 
-type Module struct {
-	Name     string
-	Requires []string
+func Create(g model.Generator) (err error) {
+	repositoryErr := createRepository(g)
+	if repositoryErr != nil {
+		err = repositoryErr
+		return
+	}
+	examplesErr := createExamples(g)
+	if examplesErr != nil {
+		err = examplesErr
+		return
+	}
+	mainErr := createMain(g)
+	if mainErr != nil {
+		err = mainErr
+		return
+	}
+	return
 }

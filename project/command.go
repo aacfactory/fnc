@@ -16,7 +16,16 @@
 
 package project
 
-import "github.com/urfave/cli/v2"
+import (
+	"fmt"
+	"github.com/aacfactory/fnc/project/model"
+	"github.com/goccy/go-yaml"
+	"github.com/urfave/cli/v2"
+	"io/ioutil"
+	"path/filepath"
+	"runtime"
+	"strings"
+)
 
 var Command = &cli.Command{
 	Name:        "create",
@@ -25,24 +34,58 @@ var Command = &cli.Command{
 	Description: "create fns project",
 	ArgsUsage:   "",
 	Category:    "",
-	Action: func(context *cli.Context) (err error) {
-
-		return
-	},
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Required: true,
-			Name:     "mod",
-			Value:    "",
-			Usage:    "go module name",
-			Aliases:  []string{"m"},
-		},
 		&cli.PathFlag{
-			Required: true,
-			Name:     "path",
+			Required: false,
+			Name:     "settings",
 			Value:    "",
-			Usage:    "project home path",
-			Aliases:  []string{"p"},
+			Usage:    "project settings file",
 		},
+	},
+	Action: func(ctx *cli.Context) (err error) {
+		projectDir := strings.TrimSpace(ctx.Args().First())
+		if projectDir == "" {
+			err = fmt.Errorf("fnc: create failed for project path is undefined")
+			return
+		}
+		projectDir, err = filepath.Abs(projectDir)
+		if err != nil {
+			err = fmt.Errorf("fnc: create failed for project path is invalid, %v", err)
+			return
+		}
+		settingsPath := ctx.Path("settings")
+		g := model.Generator{}
+		if settingsPath != "" {
+			settingsAbsPath, settingsAbsPathErr := filepath.Abs(settingsPath)
+			if settingsAbsPathErr != nil {
+				err = fmt.Errorf("fnc: create project failed, absolute representation of settings file failed, %v", settingsAbsPathErr)
+				return
+			}
+			settingsContent, readErr := ioutil.ReadFile(settingsAbsPath)
+			if readErr != nil {
+				err = fmt.Errorf("fnc: create project failed, read settings file failed, %v", readErr)
+				return
+			}
+			decodeErr := yaml.Unmarshal(settingsContent, &g)
+			if decodeErr != nil {
+				err = fmt.Errorf("fnc: create project failed, decode settings file failed, %v", decodeErr)
+				return
+			}
+		} else {
+			goVersion := runtime.Version()
+			if len(strings.Split(goVersion, ".")) > 2 {
+				goVersion = goVersion[0:strings.LastIndexByte(goVersion, '.')]
+			}
+			g.Module.Go = goVersion
+			//
+			askErr := doAsk(&g)
+			if askErr != nil {
+				err = fmt.Errorf("fnc: create project failed, %v", askErr)
+				return
+			}
+		}
+		g.Path = projectDir
+		err = create(g)
+		return
 	},
 }

@@ -33,12 +33,12 @@ var Command = &cli.Command{
 	Action: func(ctx *cli.Context) (err error) {
 		projectDir := strings.TrimSpace(ctx.Args().First())
 		if projectDir == "" {
-			err = fmt.Errorf("fnc codes failed for project path is undefined")
+			err = fmt.Errorf("fnc: codes failed for project path is undefined")
 			return
 		}
 		projectDir, err = filepath.Abs(projectDir)
 		if err != nil {
-			err = fmt.Errorf("fnc codes failed for project path is invalid, %v", err)
+			err = fmt.Errorf("fnc: codes failed for project path is invalid, %v", err)
 			return
 		}
 		debug := ctx.Bool("debug")

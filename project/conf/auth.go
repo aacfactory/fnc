@@ -14,28 +14,18 @@
  * limitations under the License.
  */
 
-package tc_test
+package conf
 
-import (
-	"fmt"
-	"github.com/urfave/cli/v2"
-	"os"
-	"testing"
-)
+type Auth struct {
+	Encoding interface{}
+}
 
-func TestCmd(t *testing.T) {
-	app := cli.NewApp()
-
-	app.Commands = []*cli.Command{
-		{
-			Name: "create",
-			Action: func(ctx *cli.Context) (err error) {
-				arg := ctx.Args().First()
-				fmt.Println(arg)
-				return
-			},
-		},
-	}
-	app.Run(os.Args)
-
+type AuthJWTEncoding struct {
+	Method      string   `json:"method,omitempty"`
+	SK          string   `json:"sk,omitempty"`
+	PublicKey   string   `json:"publicKey,omitempty"`
+	PrivateKey  string   `json:"privateKey,omitempty"`
+	Issuer      string   `json:"issuer,omitempty"`
+	Audience    []string `json:"audience,omitempty"`
+	Expirations string   `json:"expirations,omitempty"`
 }
