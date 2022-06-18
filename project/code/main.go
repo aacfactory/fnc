@@ -31,6 +31,41 @@ func createMain(g model.Generator) (err error) {
 	file.AddImport(gcg.NewPackage("github.com/aacfactory/fns"))
 	for _, dependency := range g.Settings.Dependencies {
 		switch dependency.Name {
+		case "authorizations":
+			es := strings.Split(dependency.Kind, ":")
+			switch es[0] {
+			case "jwt":
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/encoding/jwt", "_"))
+			default:
+				break
+			}
+			switch es[1] {
+			case "redis":
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/redis", "_"))
+			case "postgres":
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/postgres", "_"))
+			case "mysql":
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/mysql", "_"))
+			case "dgraph":
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/dgraph", "_"))
+			case "rgraph":
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/rgraph", "_"))
+			default:
+				break
+			}
+		case "permissions":
+			switch dependency.Kind {
+			case "postgres":
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/store/postgres", "_"))
+			case "mysql":
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/store/mysql", "_"))
+			case "dgraph":
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/store/dgraph", "_"))
+			case "rgraph":
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/store/rgraph", "_"))
+			default:
+				break
+			}
 		case "cluster":
 			switch dependency.Kind {
 			case "swarm":
@@ -90,90 +125,21 @@ func createMain(g model.Generator) (err error) {
 		mainBody.Tab().Tab().Token("sql.Service(),", gcg.NewPackage("github.com/aacfactory/fns-contrib/databases/sql")).Line()
 	}
 	// deploy auth
-	auth, hasAuth := g.Settings.FindDependency("authorizations")
+	_, hasAuth := g.Settings.FindDependency("authorizations")
 	if hasAuth {
-		es := strings.Split(auth.Kind, ":")
-		encoding := ""
-		encodingPkg := gcg.NewPackage("github.com/aacfactory/fns/service/builtin/authorizations")
-		switch es[0] {
-		case "jwt":
-			encoding = "jwt.Encoding()"
-			encodingPkg = gcg.NewPackage("github.com/aacfactory/fns-contrib/authorizations/encoding/jwt")
-		default:
-			encoding = "authorizations.DefaultTokenEncoding()"
-		}
-		store := ""
-		storePkg := gcg.NewPackage("github.com/aacfactory/fns/service/builtin/authorizations")
-		switch es[1] {
-		case "redis":
-			store = "ats.Store()"
-			storePkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/redis", "ats")
-		case "postgres":
-			store = "ats.Store()"
-			storePkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/postgres", "ats")
-		case "mysql":
-			store = "ats.Store()"
-			storePkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/mysql", "ats")
-		case "dgraph":
-			store = "ats.Store()"
-			storePkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/dgraph", "ats")
-		case "rgraph":
-			store = "ats.Store()"
-			storePkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/rgraph", "ats")
-		default:
-			store = "authorizations.DiscardTokenStore()"
-		}
 		mainBody.Tab().Tab().Token(
-			fmt.Sprintf("authorizations.Service(%s, %s),", encoding, store),
+			fmt.Sprintf("authorizations.Service(),"),
 			gcg.NewPackage("github.com/aacfactory/fns/service/builtin/authorizations"),
-			encodingPkg, storePkg,
 		).Line()
 	}
 
 	// deploy permissions
-	permissions, hasPermissions := g.Settings.FindDependency("permissions")
+	_, hasPermissions := g.Settings.FindDependency("permissions")
 	if hasPermissions {
-		pm := strings.Split(permissions.Kind, ":")
-		policy := ""
-		policyPkg := gcg.NewPackage("github.com/aacfactory/fns/service/builtin/permissions")
-		switch pm[0] {
-		case "postgres":
-			policy = "pps.Store()"
-			policyPkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/policy/postgres", "pps")
-		case "mysql":
-			policy = "pps.Store()"
-			policyPkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/policy/mysql", "pps")
-		case "dgraph":
-			policy = "pps.Store()"
-			policyPkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/policy/dgraph", "pps")
-		case "rgraph":
-			policy = "pps.Store()"
-			policyPkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/policy/rgraph", "pps")
-		default:
-			policy = "permissions.DefaultPolicyStore()"
-		}
-		model0 := ""
-		modelPkg := gcg.NewPackage("github.com/aacfactory/fns/service/builtin/permissions")
-		switch pm[1] {
-		case "postgres":
-			model0 = "pms.Store()"
-			modelPkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/model/postgres", "pms")
-		case "mysql":
-			model0 = "pms.Store()"
-			modelPkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/model/mysql", "pms")
-		case "dgraph":
-			model0 = "pms.Store()"
-			modelPkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/model/dgraph", "pms")
-		case "rgraph":
-			model0 = "pms.Store()"
-			modelPkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/model/rgraph", "pms")
-		default:
-			model0 = "permissions.DefaultModelStore()"
-		}
+
 		mainBody.Tab().Tab().Token(
-			fmt.Sprintf("permissions.Service(%s, %s),", policy, model0),
+			fmt.Sprintf("permissions.Service(),"),
 			gcg.NewPackage("github.com/aacfactory/fns/service/builtin/permissions"),
-			policyPkg, modelPkg,
 		).Line()
 	}
 	// deploy cqrs

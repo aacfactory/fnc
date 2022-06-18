@@ -219,63 +219,33 @@ func doAsk(g *model.Generator) (err error) {
 		return
 	}
 	if strings.ToLower(needPermissions) == "y" {
-		policyAsk := "permissions policy stores:\n\t1) file\n\t2) postgres\n\t3) mysql\n\t4) dgraph\n\t5) rgraph\nplease enter the number: "
-		policyNo, policyNoErr := ask(policyAsk)
-		if policyNoErr != nil {
-			err = policyNoErr
+		storeAsk := "permissions stores:\n\t1) postgres\n\t2) mysql\n\t3) dgraph\n\t4) rgraph\nplease enter the number: "
+		storeNo, storeNoErr := ask(storeAsk)
+		if storeNoErr != nil {
+			err = storeNoErr
 			return
 		}
-		policy := ""
-		switch policyNo {
+		store := ""
+		switch storeNo {
 		case "1":
-			policy = "file"
-			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/policy/file")
+			store = "postgres"
+			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/store/postgres")
 		case "2":
-			policy = "postgres"
-			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/policy/postgres")
+			store = "mysql"
+			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/store/mysql")
 		case "3":
-			policy = "mysql"
-			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/policy/mysql")
+			store = "dgraph"
+			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/store/dgraph")
 		case "4":
-			policy = "dgraph"
-			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/policy/dgraph")
-		case "5":
-			policy = "rgraph"
-			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/policy/rgraph")
+			store = "rgraph"
+			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/store/rgraph")
 		default:
 			err = fmt.Errorf("fnc: please choose in list permissions policy store")
 			return
 		}
-		modelAsk := "permissions model stores:\n\t1) file\n\t2) postgres\n\t3) mysql\n\t4) dgraph\n\t5) rgraph\nplease enter the number: "
-		modelNo, modelNoErr := ask(modelAsk)
-		if modelNoErr != nil {
-			err = modelNoErr
-			return
-		}
-		model0 := ""
-		switch modelNo {
-		case "1":
-			model0 = "file"
-			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/model/file")
-		case "2":
-			model0 = "postgres"
-			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/model/postgres")
-		case "3":
-			model0 = "mysql"
-			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/model/mysql")
-		case "4":
-			model0 = "dgraph"
-			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/model/dgraph")
-		case "5":
-			model0 = "rgraph"
-			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/model/rgraph")
-		default:
-			err = fmt.Errorf("fnc: please choose in list permissions model store")
-			return
-		}
 		g.Settings.Dependencies = append(g.Settings.Dependencies, &model.Dependency{
 			Name: "permissions",
-			Kind: fmt.Sprintf("%s:%s", policy, model0),
+			Kind: store,
 		})
 	}
 	if needDDD != "y" {
