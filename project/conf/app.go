@@ -21,65 +21,65 @@ import (
 )
 
 type Config struct {
-	Name           string
-	Service        *Service
-	Log            *LogConfig
-	OAS            *OAS
-	Server         *Server
-	Cluster        *Cluster
-	Authorizations *Auth
+	Name           string     `yaml:"name,omitempty"`
+	Service        *Service   `yaml:"service,omitempty"`
+	Log            *LogConfig `yaml:"log,omitempty"`
+	OAS            *OAS       `yaml:"oas,omitempty"`
+	Server         *Server    `yaml:"server,omitempty"`
+	Cluster        *Cluster   `yaml:"cluster,omitempty"`
+	Authorizations *Auth      `yaml:"authorizations,omitempty"`
 }
 
 type Cluster struct {
-	Kind    string
-	Client  ClusterClient
-	Options json.RawMessage
+	Kind    string          `yaml:"kind,omitempty"`
+	Client  ClusterClient   `yaml:"client,omitempty"`
+	Options json.RawMessage `yaml:"options,omitempty"`
 }
 
 type ClusterClient struct {
-	MaxIdleConnSeconds    int
-	MaxConnsPerHost       int
-	MaxIdleConnsPerHost   int
-	RequestTimeoutSeconds int
+	MaxIdleConnSeconds    int `yaml:"maxIdleConnSeconds,omitempty"`
+	MaxConnsPerHost       int `yaml:"maxConnsPerHost,omitempty"`
+	MaxIdleConnsPerHost   int `yaml:"maxIdleConnsPerHost,omitempty"`
+	RequestTimeoutSeconds int `yaml:"requestTimeoutSeconds,omitempty"`
 }
 
 type LogConfig struct {
-	Level     string
-	Formatter string
-	Color     bool
+	Level     string `yaml:"level,omitempty"`
+	Formatter string `yaml:"formatter,omitempty"`
+	Color     bool   `yaml:"color,omitempty"`
 }
 
 type OASContact struct {
-	Name  string
-	Url   string
-	Email string
+	Name  string `yaml:"name,omitempty"`
+	Url   string `yaml:"url,omitempty"`
+	Email string `yaml:"email,omitempty"`
 }
 
 type OASLicense struct {
-	Name string
-	Url  string
+	Name string `yaml:"name,omitempty"`
+	Url  string `yaml:"url,omitempty"`
 }
 
 type OASServer struct {
-	URL         string
-	Description string
+	URL         string `yaml:"url,omitempty"`
+	Description string `yaml:"description,omitempty"`
 }
 
 type OAS struct {
-	Title       string
-	Description string
-	Terms       string
-	Contact     *OASContact
-	License     *OASLicense
-	Servers     []OASServer
+	Title       string      `yaml:"title,omitempty"`
+	Description string      `yaml:"description,omitempty"`
+	Terms       string      `yaml:"terms,omitempty"`
+	Contact     *OASContact `yaml:"contact,omitempty"`
+	License     *OASLicense `yaml:"license,omitempty"`
+	Servers     []OASServer `yaml:"servers,omitempty"`
 }
 
 type Cors struct {
-	AllowedOrigins   []string
-	AllowedHeaders   []string
-	ExposedHeaders   []string
-	AllowCredentials bool
-	MaxAge           int
+	AllowedOrigins   []string `yaml:"allowedOrigins,omitempty"`
+	AllowedHeaders   []string `yaml:"allowedHeaders,omitempty"`
+	ExposedHeaders   []string `yaml:"exposedHeaders,omitempty"`
+	AllowCredentials bool     `yaml:"allowCredentials,omitempty"`
+	MaxAge           int      `yaml:"maxAge,omitempty"`
 }
 
 type TLS struct {
@@ -87,20 +87,20 @@ type TLS struct {
 	// ACME
 	// SSC(SELF-SIGN-CERT)
 	// DEFAULT
-	Kind    string
-	Options json.RawMessage
+	Kind    string          `yaml:"kind,omitempty"`
+	Options json.RawMessage `yaml:"options,omitempty"`
 }
 
 type Server struct {
-	Port         int
-	Cors         *Cors
-	TLS          *TLS
-	Options      json.RawMessage
-	Interceptors map[string]json.RawMessage
+	Port         int                        `yaml:"port,omitempty"`
+	Cors         *Cors                      `yaml:"cors,omitempty"`
+	TLS          *TLS                       `yaml:"tls,omitempty"`
+	Options      json.RawMessage            `yaml:"options,omitempty"`
+	Interceptors map[string]json.RawMessage `yaml:"interceptors,omitempty"`
 }
 
 type Service struct {
-	MaxWorkers           int
-	WorkerMaxIdleSeconds int
-	HandleTimeoutSeconds int
+	MaxWorkers           int `yaml:"maxWorkers,omitempty"`
+	WorkerMaxIdleSeconds int `yaml:"workerMaxIdleSeconds,omitempty"`
+	HandleTimeoutSeconds int `yaml:"handleTimeoutSeconds,omitempty"`
 }

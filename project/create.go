@@ -18,10 +18,12 @@ package project
 
 import (
 	"fmt"
+	"github.com/aacfactory/fnc/commons"
 	"github.com/aacfactory/fnc/project/code"
 	"github.com/aacfactory/fnc/project/conf"
 	"github.com/aacfactory/fnc/project/model"
 	"os/exec"
+	"time"
 )
 
 func create(g model.Generator) (err error) {
@@ -48,36 +50,73 @@ func create(g model.Generator) (err error) {
 		err = codeErr
 		return
 	}
+	fmt.Println("\nfnc: create project succeed")
 	return
 }
 
 func goModInit(name string) (err error) {
-	modInitCmd := exec.Command("go", "mod", "init", name)
-	modInitErr := modInitCmd.Run()
-	if modInitErr != nil {
-		err = fmt.Errorf("fnc: create project failed at go mod init, %v", modInitErr)
+	loading := commons.NewLoading("go mod init", 500*time.Millisecond)
+	loading.Show()
+	fin := make(chan error, 1)
+	go func(fin chan error) {
+		modInitCmd := exec.Command("go", "mod", "init", name)
+		modInitErr := modInitCmd.Run()
+		if modInitErr != nil {
+			fin <- fmt.Errorf("fnc: create project failed at go mod init, %v", modInitErr)
+			return
+		}
+		close(fin)
+	}(fin)
+	cmdErr, ok := <-fin
+	loading.Close()
+	if !ok {
 		return
 	}
+	err = cmdErr
 	return
 }
 
 func goGetRequires(requires []string) (err error) {
-	// fns
-	getFns := exec.Command("go", "get", "github.com/aacfactory/fns")
-	getFnsErr := getFns.Run()
-	if getFnsErr != nil {
-		err = fmt.Errorf("fnc: create project failed at go get github.com/aacfactory/fns, %v", getFnsErr)
+	loading := commons.NewLoading("go get github.com/aacfactory/fns", 500*time.Millisecond)
+	loading.Show()
+	getFnsFin := make(chan error, 1)
+	go func(fin chan error) {
+		getFns := exec.Command("go", "get", "github.com/aacfactory/fns")
+		getFnsErr := getFns.Run()
+		if getFnsErr != nil {
+			fin <- fmt.Errorf("fnc: create project failed at go get github.com/aacfactory/fns, %v", getFnsErr)
+			return
+		}
+		close(fin)
+	}(getFnsFin)
+	cmdErr := <-getFnsFin
+	loading.Close()
+	if cmdErr != nil {
+		err = cmdErr
 		return
 	}
+
 	// requires
 	if requires == nil || len(requires) == 0 {
 		return
 	}
 	for _, require := range requires {
-		get := exec.Command("go", "get", require)
-		getErr := get.Run()
-		if getErr != nil {
-			err = fmt.Errorf("fnc: create project failed at go get %s, %v", require, getErr)
+		rloading := commons.NewLoading(fmt.Sprintf("go get %s", require), 500*time.Millisecond)
+		rloading.Show()
+		getReqFin := make(chan error, 1)
+		go func(fin chan error) {
+			getReq := exec.Command("go", "get", require)
+			getReqErr := getReq.Run()
+			if getReqErr != nil {
+				fin <- fmt.Errorf("fnc: create project failed at go get %s, %v", require, getReqErr)
+				return
+			}
+			close(fin)
+		}(getReqFin)
+		reqErr := <-getReqFin
+		rloading.Close()
+		if reqErr != nil {
+			err = reqErr
 			return
 		}
 	}

@@ -21,11 +21,11 @@ type Auth struct {
 }
 
 type AuthJWTEncoding struct {
-	Method      string   `json:"method,omitempty"`
-	SK          string   `json:"sk,omitempty"`
-	PublicKey   string   `json:"publicKey,omitempty"`
-	PrivateKey  string   `json:"privateKey,omitempty"`
-	Issuer      string   `json:"issuer,omitempty"`
-	Audience    []string `json:"audience,omitempty"`
-	Expirations string   `json:"expirations,omitempty"`
+	Method      string   `yaml:"method,omitempty"`
+	SK          string   `yaml:"sk,omitempty"`
+	PublicKey   string   `yaml:"publicKey,omitempty"`
+	PrivateKey  string   `yaml:"privateKey,omitempty"`
+	Issuer      string   `yaml:"issuer,omitempty"`
+	Audience    []string `yaml:"audience,omitempty"`
+	Expirations string   `yaml:"expirations,omitempty"`
 }

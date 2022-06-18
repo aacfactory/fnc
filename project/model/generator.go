@@ -60,7 +60,7 @@ type Dependency struct {
 
 type Settings struct {
 	Name         string
-	Oas          *OAS
+	Oas          OAS
 	Http         string
 	Cluster      string
 	Dependencies []*Dependency

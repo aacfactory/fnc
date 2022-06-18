@@ -25,7 +25,7 @@ import (
 )
 
 func createMain(g model.Generator) (err error) {
-	file := gcg.NewFile("main")
+	file := gcg.NewFileWithoutNote("main")
 	// imports
 	file.AddImport(gcg.NewPackage("fmt"))
 	file.AddImport(gcg.NewPackage("github.com/aacfactory/fns"))
@@ -55,12 +55,14 @@ func createMain(g model.Generator) (err error) {
 	}
 
 	// version
-	version := gcg.Vars()
-	version.Add(gcg.Var("Version", gcg.Literal("v0.0.1")))
-	file.AddCode(version.Build())
+	vars := gcg.Vars()
+	version := gcg.Var("Version", gcg.String())
+	version.Value(gcg.Literal("v0.0.1"))
+	vars.Add(version)
+	file.AddCode(vars.Build())
 
 	// go:generate
-	file.AddCode(gcg.Line().Token("//go:generate fnc codes .").Line())
+	file.AddCode(gcg.Line().Token("//go:generate fnc codes ."))
 	// main
 	mainFn := gcg.Func()
 	mainFn.Name("main")
@@ -119,7 +121,7 @@ func createMain(g model.Generator) (err error) {
 			store = "ats.Store()"
 			storePkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/rgraph", "ats")
 		default:
-			encoding = "authorizations.DiscardTokenStore()"
+			store = "authorizations.DiscardTokenStore()"
 		}
 		mainBody.Tab().Tab().Token(
 			fmt.Sprintf("authorizations.Service(%s, %s),", encoding, store),
@@ -127,6 +129,7 @@ func createMain(g model.Generator) (err error) {
 			encodingPkg, storePkg,
 		).Line()
 	}
+
 	// deploy permissions
 	permissions, hasPermissions := g.Settings.FindDependency("permissions")
 	if hasPermissions {
@@ -149,26 +152,26 @@ func createMain(g model.Generator) (err error) {
 		default:
 			policy = "permissions.DefaultPolicyStore()"
 		}
-		model := ""
+		model0 := ""
 		modelPkg := gcg.NewPackage("github.com/aacfactory/fns/service/builtin/permissions")
 		switch pm[1] {
 		case "postgres":
-			model = "pms.Store()"
+			model0 = "pms.Store()"
 			modelPkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/model/postgres", "pms")
 		case "mysql":
-			model = "pms.Store()"
+			model0 = "pms.Store()"
 			modelPkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/model/mysql", "pms")
 		case "dgraph":
-			model = "pms.Store()"
+			model0 = "pms.Store()"
 			modelPkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/model/dgraph", "pms")
 		case "rgraph":
-			model = "pms.Store()"
+			model0 = "pms.Store()"
 			modelPkg = gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/model/rgraph", "pms")
 		default:
-			model = "permissions.DefaultModelStore()"
+			model0 = "permissions.DefaultModelStore()"
 		}
 		mainBody.Tab().Tab().Token(
-			fmt.Sprintf("permissions.Service(%s, %s),", policy, model),
+			fmt.Sprintf("permissions.Service(%s, %s),", policy, model0),
 			gcg.NewPackage("github.com/aacfactory/fns/service/builtin/permissions"),
 			policyPkg, modelPkg,
 		).Line()
@@ -186,6 +189,8 @@ func createMain(g model.Generator) (err error) {
 		"examples.Service(),",
 		gcg.NewPackage(strings.Join([]string{g.Module.Name, "modules", "examples"}, "/")),
 	).Line()
+
+	mainBody.Tab().Token(")").Line()
 	mainBody.Tab().Token("if deployErr != nil {").Line()
 	mainBody.Tab().Tab().Token("app.Log().Error().Caller().Message(fmt.Sprintf(\"%+v\", deployErr))").Line()
 	mainBody.Tab().Token("}").Line().Line()

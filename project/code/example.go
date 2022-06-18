@@ -21,7 +21,6 @@ import (
 	"github.com/aacfactory/fnc/project/model"
 	"github.com/aacfactory/gcg"
 	"os"
-	"os/exec"
 	"path/filepath"
 )
 
@@ -32,6 +31,10 @@ func createExamples(g model.Generator) (err error) {
 		err = fmt.Errorf("make %s dir failed, %v", dir, mdErr)
 		return
 	}
+	err = createModulesDoc(g.Path)
+	if err != nil {
+		return
+	}
 	err = createExamplesDoc(dir)
 	if err != nil {
 		return
@@ -40,10 +43,20 @@ func createExamples(g model.Generator) (err error) {
 	if err != nil {
 		return
 	}
-	codesCmd := exec.Command("fnc", "codes", g.Path)
-	codesCmdErr := codesCmd.Run()
-	if codesCmdErr != nil {
-		err = fmt.Errorf("fnc: create project failed at fnc codes %s, %v", g.Path, codesCmdErr)
+	return
+}
+
+func createModulesDoc(root string) (err error) {
+	file := gcg.NewFile("modules")
+	writer := gcg.FileRender(filepath.Join(root, "modules", "doc.go"), true)
+	renderErr := file.Render(writer)
+	if renderErr != nil {
+		err = fmt.Errorf("fnc: generate examples/doc.go failed, %v", renderErr)
+		return
+	}
+	closeFileErr := writer.Close()
+	if closeFileErr != nil {
+		err = fmt.Errorf("fnc: generate examples/doc.go failed, %v", closeFileErr)
 		return
 	}
 	return

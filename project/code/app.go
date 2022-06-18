@@ -17,7 +17,11 @@
 package code
 
 import (
+	"fmt"
+	"github.com/aacfactory/fnc/commons"
 	"github.com/aacfactory/fnc/project/model"
+	"os/exec"
+	"time"
 )
 
 func Create(g model.Generator) (err error) {
@@ -36,5 +40,24 @@ func Create(g model.Generator) (err error) {
 		err = mainErr
 		return
 	}
+
+	loading := commons.NewLoading("fnc codes", 500*time.Millisecond)
+	loading.Show()
+	fin := make(chan error, 1)
+	go func(fin chan error) {
+		codesCmd := exec.Command("fnc", "codes", g.Path)
+		codesCmdErr := codesCmd.Run()
+		if codesCmdErr != nil {
+			fin <- fmt.Errorf("fnc: create project failed at fnc codes %s, %v", g.Path, codesCmdErr)
+			return
+		}
+		close(fin)
+	}(fin)
+	cmdErr, ok := <-fin
+	loading.Close()
+	if !ok {
+		return
+	}
+	err = cmdErr
 	return
 }

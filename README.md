@@ -1,25 +1,26 @@
-# fnc
+# FNC
 
-fns generators
+fns codes generator
 
 ## Install
 ```bash
-go install github.com/aacfactory/fnc@v1.6.1
+go install github.com/aacfactory/fnc@v1.8.0
 ```
 ## Usage
-Use Command
+### Create project
 ```bash
-fnc -p ./path_of_fns_project
+cd {your project dir}
+fnc create .
 ```
-Use Go Generate
+### Generate fn service and proxy
 ```go
 // main
-// go:generate fnc -p .
+// go:generate fnc codes .
 func main() {
 	
 }
 ```
-Markup Service Doc  
+Enable service annotations.  
 doc.go in fn source file's folder.
 ```go
 // Package samples
@@ -29,7 +30,7 @@ doc.go in fn source file's folder.
 // @internal false
 package samples
 ```
-Makeup Fn Doc
+Enable fn annotations.
 ```go
 // query
 // @fn query
@@ -38,18 +39,18 @@ Makeup Fn Doc
 // @permission false
 // @title query
 // @description query
-func query(ctx fns.Context, param QueryParam) (v []*Sample, err errors.CodeError) {
+func query(ctx context.Context, argument QueryArgument) (result []*Sample, err errors.CodeError) {
 
 	return
 }
 
 ```
-Makeup Struct Doc
+Enable argument and result annotations.
 ```go
-// QueryParam
+// QueryArgument
 // @title title 
 // @description description
-type QueryParam struct {
+type QueryArgument struct {
 	// Offset
 	// @title title 
 	// @description description
@@ -144,10 +145,10 @@ type Sample struct {
 * @permission
     > fn has permission
     not implement
-* @tx
+* @transaction
     > open transaction in fn, and auto commit after succeed action or rollback after failed action.
     support sql only now.
-    example: @tx sql
+    example: @transaction sql
 * @title
     > title 
 * @description

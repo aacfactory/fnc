@@ -31,6 +31,9 @@ import (
 )
 
 func Create(g model.Generator) (err error) {
+	if g.Settings.Oas.Title == "" {
+		g.Settings.Oas.Title = g.Settings.Name
+	}
 	var jwtKeyPair *rsa.PrivateKey
 	app := Config{
 		Name:    g.Settings.Name,
