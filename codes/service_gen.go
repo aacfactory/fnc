@@ -344,15 +344,20 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 		// authorization
 		if fn.HasAuthorization() {
 			body.Tab().Tab().Token("// verify authorizations").Line()
-			body.Tab().Tab().Token("verifyErr := authorizations.Verify(ctx)", gcg.NewPackage("github.com/aacfactory/fns/endpoints/authorizations")).Line()
-			body.Tab().Tab().Token("if verifyErr != nil {").Line()
-			body.Tab().Tab().Tab().Token(fmt.Sprintf("err = verifyErr.WithMeta(\"service\", _name).WithMeta(\"fn\", %s)", key)).Line()
+			body.Tab().Tab().Token("verifyAuthorizationErr := authorizations.Verify(ctx)", gcg.NewPackage("github.com/aacfactory/fns/endpoints/authorizations")).Line()
+			body.Tab().Tab().Token("if verifyAuthorizationErr != nil {").Line()
+			body.Tab().Tab().Tab().Token(fmt.Sprintf("err = verifyAuthorizationErr.WithMeta(\"service\", _name).WithMeta(\"fn\", %s)", key)).Line()
 			body.Tab().Tab().Tab().Token("return").Line()
 			body.Tab().Tab().Token("}").Line()
 		}
-		// todo permission
+		// permission
 		if fn.HasPermission() {
-			body.Tab().Tab().Token("// todo permission").Line()
+			body.Tab().Tab().Token("// permission").Line()
+			body.Tab().Tab().Token(fmt.Sprintf("verifyPermissionsErr := permissions.Verify(ctx, _name, %s)", key), gcg.NewPackage("github.com/aacfactory/fns/endpoints/permissions")).Line()
+			body.Tab().Tab().Token("if verifyPermissionsErr != nil {").Line()
+			body.Tab().Tab().Tab().Token(fmt.Sprintf("err = verifyPermissionsErr.WithMeta(\"service\", _name).WithMeta(\"fn\", %s)", key)).Line()
+			body.Tab().Tab().Tab().Token("return").Line()
+			body.Tab().Tab().Token("}").Line()
 		}
 
 		// param
