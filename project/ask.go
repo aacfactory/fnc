@@ -122,7 +122,8 @@ func doAsk(g *model.Generator) (err error) {
 
 		if kind == "query" || kind == "full" {
 			// query store
-			qsAsk := "query database kind:\n\t1) postgres\n\t2) mysql\n\t3) dgraph\n\t4) rgraph\nplease enter the number: "
+			//qsAsk := "query database kind:\n\t1) postgres\n\t2) mysql\n\t3) dgraph\n\t4) rgraph\nplease enter the number: "
+			qsAsk := "query database kind:\n\t1) postgres\n\t2) mysql\nplease enter the number: "
 			qsNo, qsNoErr := ask(qsAsk)
 			if qsNoErr != nil {
 				err = qsNoErr
@@ -178,7 +179,8 @@ func doAsk(g *model.Generator) (err error) {
 			err = fmt.Errorf("fnc: please choose in list authorizations encoding")
 			return
 		}
-		storeAsk := "authorizations stores:\n\t1) discard\n\t2) redis\n\t3) postgres\n\t4) mysql\n\t5) dgraph\n\t6) rgraph\nplease enter the number: "
+		storeAsk := "authorizations stores:\n\t1) discard\n\t2) redis\n\t3) postgres\n\t4) mysql\nplease enter the number: "
+		//storeAsk := "authorizations stores:\n\t1) discard\n\t2) redis\n\t3) postgres\n\t4) mysql\n\t5) dgraph\n\t6) rgraph\nplease enter the number: "
 		authorizationsStoreNo, authorizationsStoreNoErr := ask(storeAsk)
 		if authorizationsStoreNoErr != nil {
 			err = authorizationsStoreNoErr
@@ -219,7 +221,8 @@ func doAsk(g *model.Generator) (err error) {
 		return
 	}
 	if strings.ToLower(needPermissions) == "y" {
-		storeAsk := "permissions stores:\n\t1) postgres\n\t2) mysql\n\t3) dgraph\n\t4) rgraph\nplease enter the number: "
+		//storeAsk := "permissions stores:\n\t1) postgres\n\t2) mysql\n\t3) dgraph\n\t4) rgraph\nplease enter the number: "
+		storeAsk := "permissions stores:\n\t1) postgres\n\t2) mysql\nplease enter the number: "
 		storeNo, storeNoErr := ask(storeAsk)
 		if storeNoErr != nil {
 			err = storeNoErr
