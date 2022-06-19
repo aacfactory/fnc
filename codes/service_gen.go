@@ -352,8 +352,26 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 		}
 		// permission
 		if fn.HasPermission() {
+			allow := fn.Annotations["permission"]
+			if allow == "" {
+				err = fmt.Errorf("there is no roles in permission")
+				return
+			}
+			allows := strings.Split(allow, ",")
+			roles := make([]string, 0, 1)
+			for _, s := range allows {
+				s = strings.TrimSpace(s)
+				if s == "" {
+					continue
+				}
+				roles = append(roles, fmt.Sprintf("\"%s\"", s))
+			}
+			if len(roles) == 0 {
+				err = fmt.Errorf("there is no roles in permission")
+				return
+			}
 			body.Tab().Tab().Token("// permission").Line()
-			body.Tab().Tab().Token(fmt.Sprintf("verifyPermissionsErr := permissions.Verify(ctx, _name, %s)", key), gcg.NewPackage("github.com/aacfactory/fns/endpoints/permissions")).Line()
+			body.Tab().Tab().Token(fmt.Sprintf("verifyPermissionsErr := permissions.Verify(ctx, %s)", strings.Join(roles, ",")), gcg.NewPackage("github.com/aacfactory/fns/endpoints/permissions")).Line()
 			body.Tab().Tab().Token("if verifyPermissionsErr != nil {").Line()
 			body.Tab().Tab().Tab().Token(fmt.Sprintf("err = verifyPermissionsErr.WithMeta(\"service\", _name).WithMeta(\"fn\", %s)", key)).Line()
 			body.Tab().Tab().Tab().Token("return").Line()
