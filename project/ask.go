@@ -302,13 +302,13 @@ func doAsk(g *model.Generator) (err error) {
 			mqType := ""
 			switch mqNo {
 			case "1":
-				mqType = "rabbitMQ"
+				mqType = "rabbit"
 				g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/message-queues/rabbit")
 			case "2":
 				mqType = "kafka"
 				g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/message-queues/kafka")
 			case "3":
-				mqType = "rocketMQ"
+				mqType = "rocket"
 				g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/message-queues/rocket")
 			case "4":
 				mqType = "nats"
