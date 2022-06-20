@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/aacfactory/fnc/codes"
 	"github.com/aacfactory/fnc/project"
+	"github.com/aacfactory/fnc/ssc"
 	"github.com/urfave/cli/v2"
 	"os"
 	"runtime"
@@ -61,6 +62,7 @@ func main() {
 	app.Commands = []*cli.Command{
 		codes.Command,
 		project.Command,
+		ssc.Command,
 	}
 	if err := app.RunContext(context.Background(), os.Args); err != nil {
 		fmt.Println("fnc", "failed", err)

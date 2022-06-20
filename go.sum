@@ -1,3 +1,5 @@
+github.com/aacfactory/afssl v1.4.0 h1:msCBEuc2quMbUaTlbZiuffQfH6ANiOBlBq7QMa5TLqM=
+github.com/aacfactory/afssl v1.4.0/go.mod h1:gO9Y8nwF/JS4ohdq8KgAFHnFbnLuDEOvRRYNg+nWR94=
 github.com/aacfactory/cases v1.1.0 h1:oY7wSX57PJav72ZDFmmdmWPrEUXjc5zh8ckDAJM4iSQ=
 github.com/aacfactory/cases v1.1.0/go.mod h1:Utk93dgZ/xXw2GTSM1QU2y1+R4LDEUVel2LtO09Mxt0=
 github.com/aacfactory/gcg v1.0.4 h1:uUCdTIigQBqb9bIKTXp0Kx4tfgg6SXN+TDq6KFDJGiI=

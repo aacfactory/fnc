@@ -3,6 +3,7 @@ module github.com/aacfactory/fnc
 go 1.18
 
 require (
+	github.com/aacfactory/afssl v1.4.0
 	github.com/aacfactory/cases v1.1.0
 	github.com/aacfactory/gcg v1.0.4
 	github.com/aacfactory/logs v1.2.0
