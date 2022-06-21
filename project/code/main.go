@@ -114,6 +114,14 @@ func createMain(g model.Generator) (err error) {
 			break
 		}
 	}
+	// mq
+	mq, hasMQ := g.Settings.FindDependency("mq")
+	if hasMQ {
+		mainBody.Tab().Tab().Token(
+			fmt.Sprintf("fns.ExtraListeners(%s.Listener()),", mq.Kind),
+			gcg.NewPackage(fmt.Sprintf("github.com/aacfactory/fns-contrib/message-queues/%s", mq.Kind)),
+		).Line()
+	}
 	mainBody.Tab().Tab().Token("fns.Version(Version),").Line()
 	mainBody.Tab().Token(")").Line().Line()
 
@@ -142,14 +150,7 @@ func createMain(g model.Generator) (err error) {
 			gcg.NewPackage("github.com/aacfactory/fns/service/builtin/permissions"),
 		).Line()
 	}
-	// deploy mq
-	mq, hasMQ := g.Settings.FindDependency("mq")
-	if hasMQ {
-		mainBody.Tab().Tab().Token(
-			fmt.Sprintf("%s.Service(),", mq.Kind),
-			gcg.NewPackage(fmt.Sprintf("github.com/aacfactory/fns-contrib/message-queues/%s", mq.Kind)),
-		).Line()
-	}
+
 	// deploy cqrs
 	_, hasCqrs := g.Settings.FindDependency("cqrs")
 	if hasCqrs {
