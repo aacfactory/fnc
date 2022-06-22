@@ -293,7 +293,7 @@ func doAsk(g *model.Generator) (err error) {
 			return
 		}
 		if strings.ToLower(needMQ) == "y" {
-			mqAsk := "message queue type:\n\t1) rabbitMQ\n\t2) kafka\n\t3) rocketMQ\n\t4) nats\nplease enter the number: "
+			mqAsk := "message queue type:\n\t1) rabbitMQ\n\t2) kafka\n\t3) nats\nplease enter the number: "
 			mqNo, mqNoErr := ask(mqAsk)
 			if mqNoErr != nil {
 				err = mqNoErr
@@ -308,9 +308,6 @@ func doAsk(g *model.Generator) (err error) {
 				mqType = "kafka"
 				g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/message-queues/kafka")
 			case "3":
-				mqType = "rocket"
-				g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/message-queues/rocket")
-			case "4":
 				mqType = "nats"
 				g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/message-queues/nats")
 			default:
