@@ -351,20 +351,9 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 			body.Tab().Tab().Token("}").Line()
 		}
 		// permission
-		if fn.HasPermission() {
-			allow := fn.Annotations["permission"]
-			if allow == "" {
-				err = fmt.Errorf("there is no roles in permission")
-				return
-			}
-			allows := strings.Split(allow, ",")
-			roles := make([]string, 0, 1)
-			for _, s := range allows {
-				s = strings.TrimSpace(s)
-				if s == "" {
-					continue
-				}
-				roles = append(roles, fmt.Sprintf("\"%s\"", s))
+		if roles, hasPermissions := fn.GetPermissions(); hasPermissions {
+			for i, s := range roles {
+				roles[i] = fmt.Sprintf("\"%s\"", s)
 			}
 			if len(roles) == 0 {
 				err = fmt.Errorf("there is no roles in permission")

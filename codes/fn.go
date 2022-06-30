@@ -106,8 +106,22 @@ func (f *Fn) HasDeprecated() (v bool) {
 	return
 }
 
-func (f *Fn) HasPermission() (v bool) {
-	v = f.Annotations["permission"] == "true"
+func (f *Fn) GetPermissions() (roles []string, v bool) {
+	values, has := f.Annotations["permission"]
+	if !has {
+		return
+	}
+	items := strings.Split(strings.TrimSpace(values), ",")
+	if len(items) == 0 {
+		return
+	}
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		roles = append(roles, item)
+	}
 	return
 }
 
