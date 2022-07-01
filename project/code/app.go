@@ -35,6 +35,16 @@ func Create(g model.Generator) (err error) {
 		err = examplesErr
 		return
 	}
+	servicesErr := createServices(g)
+	if servicesErr != nil {
+		err = servicesErr
+		return
+	}
+	depErr := createDep(g)
+	if depErr != nil {
+		err = depErr
+		return
+	}
 	mainErr := createMain(g)
 	if mainErr != nil {
 		err = mainErr
@@ -45,7 +55,7 @@ func Create(g model.Generator) (err error) {
 	loading.Show()
 	fin := make(chan error, 1)
 	go func(fin chan error) {
-		codesCmd := exec.Command("fnc", "codes", g.Path)
+		codesCmd := exec.Command("fnc", "codes")
 		codesCmdErr := codesCmd.Run()
 		if codesCmdErr != nil {
 			fin <- fmt.Errorf("fnc: create project failed at fnc codes %s, %v", g.Path, codesCmdErr)

@@ -68,7 +68,7 @@ func doAsk(g *model.Generator) (err error) {
 		return
 	}
 	if strings.ToLower(needCluster) == "y" {
-		kindAsk := "cluster kind:\n\t1) default\n\t2) docker swarm\n\t3) kubernetes\nplease enter the number: "
+		kindAsk := "cluster kind:\n\t1) members\n\t2) docker swarm\n\t3) kubernetes\nplease enter the number: "
 		kindNo, kindNoErr := ask(kindAsk)
 		if kindNoErr != nil {
 			err = kindNoErr
@@ -77,7 +77,7 @@ func doAsk(g *model.Generator) (err error) {
 		kind := ""
 		switch kindNo {
 		case "1":
-			kind = "default"
+			kind = "members"
 		case "2":
 			kind = "swarm"
 			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/cluster/swarm")

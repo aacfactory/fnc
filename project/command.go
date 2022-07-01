@@ -45,8 +45,7 @@ var Command = &cli.Command{
 	Action: func(ctx *cli.Context) (err error) {
 		projectDir := strings.TrimSpace(ctx.Args().First())
 		if projectDir == "" {
-			err = fmt.Errorf("fnc: create failed for project path is undefined")
-			return
+			projectDir = "."
 		}
 		projectDir, err = filepath.Abs(projectDir)
 		if err != nil {

@@ -50,6 +50,11 @@ func create(g model.Generator) (err error) {
 		err = codeErr
 		return
 	}
+	tidyErr := goModTidy()
+	if tidyErr != nil {
+		err = tidyErr
+		return
+	}
 	fmt.Println("\nfnc: create project succeed")
 	return
 }
@@ -63,6 +68,28 @@ func goModInit(name string) (err error) {
 		modInitErr := modInitCmd.Run()
 		if modInitErr != nil {
 			fin <- fmt.Errorf("fnc: create project failed at go mod init, %v", modInitErr)
+			return
+		}
+		close(fin)
+	}(fin)
+	cmdErr, ok := <-fin
+	loading.Close()
+	if !ok {
+		return
+	}
+	err = cmdErr
+	return
+}
+
+func goModTidy() (err error) {
+	loading := commons.NewLoading("go mod tidy", 500*time.Millisecond)
+	loading.Show()
+	fin := make(chan error, 1)
+	go func(fin chan error) {
+		modTidyCmd := exec.Command("go", "mod", "tidy")
+		modTidyCmdErr := modTidyCmd.Run()
+		if modTidyCmdErr != nil {
+			fin <- fmt.Errorf("fnc: create project failed at go mod tidy, %v", modTidyCmdErr)
 			return
 		}
 		close(fin)

@@ -31,10 +31,7 @@ func createExamples(g model.Generator) (err error) {
 		err = fmt.Errorf("make %s dir failed, %v", dir, mdErr)
 		return
 	}
-	err = createModulesDoc(g.Path)
-	if err != nil {
-		return
-	}
+
 	err = createExamplesDoc(dir)
 	if err != nil {
 		return
@@ -46,29 +43,13 @@ func createExamples(g model.Generator) (err error) {
 	return
 }
 
-func createModulesDoc(root string) (err error) {
-	file := gcg.NewFile("modules")
-	writer := gcg.FileRender(filepath.Join(root, "modules", "doc.go"), true)
-	renderErr := file.Render(writer)
-	if renderErr != nil {
-		err = fmt.Errorf("fnc: generate examples/doc.go failed, %v", renderErr)
-		return
-	}
-	closeFileErr := writer.Close()
-	if closeFileErr != nil {
-		err = fmt.Errorf("fnc: generate examples/doc.go failed, %v", closeFileErr)
-		return
-	}
-	return
-}
-
 func createExamplesDoc(root string) (err error) {
-	file := gcg.NewFile("examples")
+	file := gcg.NewFileWithoutNote("examples")
 	file.FileComments(
 		"Package examples",
-		"@service users",
-		"@title 案例",
-		"@description 案例服务",
+		"@service examples",
+		"@title Examples",
+		"@description Example service",
 		"@internal false",
 	)
 	writer := gcg.FileRender(filepath.Join(root, "doc.go"), true)
@@ -86,14 +67,14 @@ func createExamplesDoc(root string) (err error) {
 }
 
 func createExamplesFn(root string) (err error) {
-	file := gcg.NewFile("examples")
+	file := gcg.NewFileWithoutNote("examples")
 
 	file.AddImport(gcg.NewPackage("context"))
 	file.AddImport(gcg.NewPackage("github.com/aacfactory/errors"))
 
 	argument := gcg.Struct()
 	argumentNameField := gcg.StructField("Name")
-	argumentNameField.Comments("@title 名称", "@description 名称")
+	argumentNameField.Comments("@title Name", "@description Name")
 	argumentNameField.Type(gcg.Ident("string"))
 	argumentNameField.Tag("json", "name")
 	argumentNameField.Tag("validate", "required")
@@ -102,21 +83,21 @@ func createExamplesFn(root string) (err error) {
 	file.AddCode(gcg.Type(
 		"HelloArgument",
 		argument.Build(),
-		"@title Hello参数",
-		"@description Hello参数",
+		"@title Hello Argument",
+		"@description Hello Argument",
 	))
 
 	result := gcg.Struct()
 	resultNameField := gcg.StructField("Name")
-	resultNameField.Comments("@title 名称", "@description 名称")
+	resultNameField.Comments("@title Name", "@description Name")
 	resultNameField.Type(gcg.Ident("string"))
 	resultNameField.Tag("json", "name")
 	result.AddField(resultNameField)
 	file.AddCode(gcg.Type(
 		"HelloResult",
 		result.Build(),
-		"@title Hello返回值",
-		"@description Hello返回值",
+		"@title Hello Result",
+		"@description Hello Result",
 	))
 
 	fn := gcg.Func()
@@ -127,12 +108,14 @@ func createExamplesFn(root string) (err error) {
 		"@authorization false",
 		"@permission false",
 		"@internal false",
-		"@title 您好",
+		"@title Hello",
 		"@description >>>",
-		"您好",
+		"Hello Fn",
 		"----------",
 		"errors:",
-		"* examples_hello_failed",
+		"| Name                     | Code    | Description                   |",
+		"|--------------------------|---------|-------------------------------|",
+		"| examples_hello_failed    | 500     | hello failed                  |",
 		"<<<",
 	)
 	fn.AddParam("ctx", gcg.QualifiedIdent(gcg.NewPackage("context"), "Context"))
@@ -143,6 +126,7 @@ func createExamplesFn(root string) (err error) {
 	body := gcg.Statements()
 	body.Tab().Token("if argument.Name == \"error\" {").Line()
 	body.Tab().Tab().Token("err = errors.ServiceError(\"hello failed\").WithMeta(\"code\", \"examples_hello_failed\")").Line()
+	body.Tab().Return()
 	body.Tab().Token("}").Line()
 	body.Tab().Token("result = &HelloResult{").Line()
 	body.Tab().Tab().Token("Name: fmt.Sprintf(\"hello %s!\", argument.Name),", gcg.NewPackage("fmt")).Line()

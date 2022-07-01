@@ -28,12 +28,15 @@ type Config struct {
 	Server         *Server    `yaml:"server,omitempty"`
 	Cluster        *Cluster   `yaml:"cluster,omitempty"`
 	Authorizations *Auth      `yaml:"authorizations,omitempty"`
+	SQL            *SQL       `yaml:"sql,omitempty"`
 }
 
 type Cluster struct {
-	Kind    string          `yaml:"kind,omitempty"`
-	Client  ClusterClient   `yaml:"client,omitempty"`
-	Options json.RawMessage `yaml:"options,omitempty"`
+	DevMode           bool                   `yaml:"devMode"`
+	NodesProxyAddress string                 `yaml:"nodesProxyAddress"`
+	Kind              string                 `yaml:"kind,omitempty"`
+	Client            ClusterClient          `yaml:"client,omitempty"`
+	Options           map[string]interface{} `yaml:"options,omitempty"`
 }
 
 type ClusterClient struct {
@@ -103,4 +106,15 @@ type Service struct {
 	MaxWorkers           int `yaml:"maxWorkers,omitempty"`
 	WorkerMaxIdleSeconds int `yaml:"workerMaxIdleSeconds,omitempty"`
 	HandleTimeoutSeconds int `yaml:"handleTimeoutSeconds,omitempty"`
+}
+
+type SQL struct {
+	Driver           string   `yaml:"driver"`
+	MasterSlaverMode bool     `yaml:"masterSlaverMode"`
+	DSN              []string `yaml:"dsn"`
+	MaxIdles         int      `yaml:"maxIdles"`
+	MaxOpens         int      `yaml:"maxOpens"`
+	EnableDebugLog   bool     `yaml:"enableDebugLog"`
+	GTMCleanUpSecond int      `yaml:"gtmCleanUpSecond"`
+	Isolation        int      `yaml:"isolation"`
 }

@@ -19,6 +19,7 @@ package codes
 import (
 	"bytes"
 	"fmt"
+	"github.com/aacfactory/gcg"
 	"github.com/aacfactory/logs"
 	"go/ast"
 	"path/filepath"
@@ -442,6 +443,40 @@ func (p *Project) Generate() (err error) {
 			return
 		}
 	}
+
+	file := gcg.NewFile("modules")
+	file.AddImport(gcg.NewPackage("github.com/aacfactory/fns/service"))
+
+	fn := gcg.Func()
+	fn.Name("services")
+	fn.AddResult("services", gcg.Token("[]service.Service"))
+	body := gcg.Statements()
+	body.Tab().Token("services = append(").Line()
+	body.Tab().Tab().Token("services,").Line()
+	body.Tab().Tab().Token("dependencies()...,").Line()
+	body.Tab().Token(")").Line()
+	body.Tab().Token("services = append(").Line()
+	body.Tab().Tab().Token("services,").Line()
+	for _, service := range services {
+		body.Tab().Tab().Token(fmt.Sprintf("%s.Service(),", service.Package), gcg.NewPackage(fmt.Sprintf("%s/modules/%s", p.mod.Name, service.Package))).Line()
+	}
+	body.Tab().Token(")").Line()
+	body.Return()
+	fn.Body(body)
+	file.AddCode(fn.Build())
+	modulesPath := filepath.Join(p.mod.Path, "modules", "services.go")
+	writer := gcg.FileRender(modulesPath, true)
+	renderErr := file.Render(writer)
+	if renderErr != nil {
+		err = fmt.Errorf("fnc: generate modules/services.go failed, %v", renderErr)
+		return
+	}
+	closeFileErr := writer.Close()
+	if closeFileErr != nil {
+		err = fmt.Errorf("fnc: generate modules/services.go failed, %v", closeFileErr)
+		return
+	}
+
 	if p.log.DebugEnabled() {
 		p.log.Debug().With("YOU", "GENIUS").Message("fnc: codes generate succeed")
 	}

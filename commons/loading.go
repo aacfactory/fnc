@@ -51,6 +51,7 @@ func (x *Loading) Show() {
 				i++
 			}
 			if stopped {
+				fmt.Println()
 				break
 			}
 		}

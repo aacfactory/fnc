@@ -41,7 +41,7 @@ func Create(g model.Generator) (err error) {
 		Log: &LogConfig{
 			Level:     "info",
 			Formatter: "console",
-			Color:     true,
+			Color:     false,
 		},
 		OAS: &OAS{
 			Title:       g.Settings.Oas.Title,
@@ -129,6 +129,61 @@ func Create(g model.Generator) (err error) {
 		},
 		Cluster: nil,
 	}
+	cluster, hasCluster := g.Settings.FindDependency("cluster")
+	if hasCluster {
+		local.Cluster = &Cluster{
+			DevMode:           true,
+			NodesProxyAddress: "proxyHost",
+			Kind:              cluster.Kind,
+			Client: ClusterClient{
+				MaxIdleConnSeconds:    60,
+				MaxConnsPerHost:       0,
+				MaxIdleConnsPerHost:   0,
+				RequestTimeoutSeconds: 10,
+			},
+			Options: make(map[string]interface{}),
+		}
+		if cluster.Kind == "members" {
+			local.Cluster.Options[cluster.Kind] = []string{"ip:port"}
+		}
+		if cluster.Kind == "swarm" {
+			local.Cluster.Options[cluster.Kind] = map[string]interface{}{
+				"fromEnv": false,
+				"host":    "master ip:port",
+				"certDir": "./config/swarm",
+				"labels":  []string{"FNS-SERVICE"},
+			}
+			_ = os.MkdirAll(filepath.Join(g.Path, "config", "swarm"), 0666)
+		}
+		if cluster.Kind == "kubernetes" {
+			local.Cluster.Options[cluster.Kind] = map[string]interface{}{
+				"inCluster":      false,
+				"kubeConfigPath": "./config/kube",
+				"namespace":      "fns",
+				"labels":         []string{"FNS-SERVICE"},
+			}
+			_ = os.MkdirAll(filepath.Join(g.Path, "config", "kube"), 0666)
+		}
+	}
+	sql, hasSQL := g.Settings.FindDependency("sql")
+	if hasSQL {
+		driver := ""
+		if sql.Kind == "postgres" {
+			driver = "postgres"
+		} else if sql.Kind == "mysql" {
+			driver = "mysql"
+		}
+		local.SQL = &SQL{
+			Driver:           driver,
+			MasterSlaverMode: false,
+			DSN:              []string{"dsn"},
+			MaxIdles:         2,
+			MaxOpens:         4,
+			EnableDebugLog:   false,
+			GTMCleanUpSecond: 60,
+			Isolation:        2,
+		}
+	}
 	localConf, _ := yaml.Marshal(local)
 	dev := Config{
 		Service: nil,
@@ -145,6 +200,57 @@ func Create(g model.Generator) (err error) {
 			Interceptors: nil,
 		},
 		Cluster: nil,
+	}
+	if hasCluster {
+		dev.Cluster = &Cluster{
+			DevMode:           true,
+			NodesProxyAddress: "proxyHost",
+			Kind:              cluster.Kind,
+			Client: ClusterClient{
+				MaxIdleConnSeconds:    60,
+				MaxConnsPerHost:       0,
+				MaxIdleConnsPerHost:   0,
+				RequestTimeoutSeconds: 10,
+			},
+			Options: make(map[string]interface{}),
+		}
+		if cluster.Kind == "members" {
+			dev.Cluster.Options[cluster.Kind] = []string{"ip:port"}
+		}
+		if cluster.Kind == "swarm" {
+			dev.Cluster.Options[cluster.Kind] = map[string]interface{}{
+				"fromEnv": false,
+				"host":    "master ip:port",
+				"certDir": "./config/swarm",
+				"labels":  []string{"FNS-SERVICE"},
+			}
+		}
+		if cluster.Kind == "kubernetes" {
+			dev.Cluster.Options[cluster.Kind] = map[string]interface{}{
+				"inCluster":      true,
+				"kubeConfigPath": "~/.kube",
+				"namespace":      "fns",
+				"labels":         []string{"FNS-SERVICE"},
+			}
+		}
+	}
+	if hasSQL {
+		driver := ""
+		if sql.Kind == "postgres" {
+			driver = "postgres"
+		} else if sql.Kind == "mysql" {
+			driver = "mysql"
+		}
+		dev.SQL = &SQL{
+			Driver:           driver,
+			MasterSlaverMode: false,
+			DSN:              []string{"dsn"},
+			MaxIdles:         8,
+			MaxOpens:         64,
+			EnableDebugLog:   false,
+			GTMCleanUpSecond: 60,
+			Isolation:        2,
+		}
 	}
 	devConf, _ := yaml.Marshal(dev)
 	qa := Config{
@@ -163,6 +269,57 @@ func Create(g model.Generator) (err error) {
 		},
 		Cluster: nil,
 	}
+	if hasCluster {
+		qa.Cluster = &Cluster{
+			DevMode:           false,
+			NodesProxyAddress: "",
+			Kind:              cluster.Kind,
+			Client: ClusterClient{
+				MaxIdleConnSeconds:    60,
+				MaxConnsPerHost:       0,
+				MaxIdleConnsPerHost:   0,
+				RequestTimeoutSeconds: 10,
+			},
+			Options: make(map[string]interface{}),
+		}
+		if cluster.Kind == "members" {
+			qa.Cluster.Options[cluster.Kind] = []string{"ip:port"}
+		}
+		if cluster.Kind == "swarm" {
+			qa.Cluster.Options[cluster.Kind] = map[string]interface{}{
+				"fromEnv": false,
+				"host":    "master ip:port",
+				"certDir": "./config/swarm",
+				"labels":  []string{"FNS-SERVICE"},
+			}
+		}
+		if cluster.Kind == "kubernetes" {
+			qa.Cluster.Options[cluster.Kind] = map[string]interface{}{
+				"inCluster":      true,
+				"kubeConfigPath": "~/.kube",
+				"namespace":      "fns",
+				"labels":         []string{"FNS-SERVICE"},
+			}
+		}
+	}
+	if hasSQL {
+		driver := ""
+		if sql.Kind == "postgres" {
+			driver = "postgres"
+		} else if sql.Kind == "mysql" {
+			driver = "mysql"
+		}
+		qa.SQL = &SQL{
+			Driver:           driver,
+			MasterSlaverMode: false,
+			DSN:              []string{"dsn"},
+			MaxIdles:         8,
+			MaxOpens:         64,
+			EnableDebugLog:   false,
+			GTMCleanUpSecond: 60,
+			Isolation:        2,
+		}
+	}
 	qaConf, _ := yaml.Marshal(qa)
 	prod := Config{
 		Service: nil,
@@ -179,6 +336,57 @@ func Create(g model.Generator) (err error) {
 			Interceptors: nil,
 		},
 		Cluster: nil,
+	}
+	if hasCluster {
+		prod.Cluster = &Cluster{
+			DevMode:           false,
+			NodesProxyAddress: "",
+			Kind:              cluster.Kind,
+			Client: ClusterClient{
+				MaxIdleConnSeconds:    60,
+				MaxConnsPerHost:       0,
+				MaxIdleConnsPerHost:   0,
+				RequestTimeoutSeconds: 10,
+			},
+			Options: make(map[string]interface{}),
+		}
+		if cluster.Kind == "members" {
+			prod.Cluster.Options[cluster.Kind] = []string{"ip:port"}
+		}
+		if cluster.Kind == "swarm" {
+			prod.Cluster.Options[cluster.Kind] = map[string]interface{}{
+				"fromEnv": false,
+				"host":    "master ip:port",
+				"certDir": "./config/swarm",
+				"labels":  []string{"FNS-SERVICE"},
+			}
+		}
+		if cluster.Kind == "kubernetes" {
+			prod.Cluster.Options[cluster.Kind] = map[string]interface{}{
+				"inCluster":      true,
+				"kubeConfigPath": "~/.kube",
+				"namespace":      "fns",
+				"labels":         []string{"FNS-SERVICE"},
+			}
+		}
+	}
+	if hasSQL {
+		driver := ""
+		if sql.Kind == "postgres" {
+			driver = "postgres"
+		} else if sql.Kind == "mysql" {
+			driver = "mysql"
+		}
+		prod.SQL = &SQL{
+			Driver:           driver,
+			MasterSlaverMode: false,
+			DSN:              []string{"dsn"},
+			MaxIdles:         8,
+			MaxOpens:         64,
+			EnableDebugLog:   false,
+			GTMCleanUpSecond: 60,
+			Isolation:        2,
+		}
 	}
 	prodConf, _ := yaml.Marshal(prod)
 
