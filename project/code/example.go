@@ -125,7 +125,7 @@ func createExamplesFn(root string) (err error) {
 
 	body := gcg.Statements()
 	body.Tab().Token("if argument.Name == \"error\" {").Line()
-	body.Tab().Tab().Token("err = errors.ServiceError(\"hello failed\").WithMeta(\"code\", \"examples_hello_failed\")").Line()
+	body.Tab().Tab().Token("err = errors.ServiceError(\"examples_hello_failed\")").Line()
 	body.Tab().Return()
 	body.Tab().Token("}").Line()
 	body.Tab().Token("result = &HelloResult{").Line()
