@@ -28,7 +28,7 @@ func createServices(g model.Generator) (err error) {
 	file.AddImport(gcg.NewPackage("github.com/aacfactory/fns/service"))
 
 	fn := gcg.Func()
-	fn.Name("services")
+	fn.Name("Services")
 	fn.AddResult("services", gcg.Token("[]service.Service"))
 	body := gcg.Statements()
 	body.Tab().Token("services = append(").Line()

@@ -91,16 +91,19 @@ func createDep(g model.Generator) (err error) {
 	fn.Name("dependencies")
 	fn.AddResult("services", gcg.Token("[]service.Service"))
 	body := gcg.Statements()
+	has := false
 	body.Tab().Token("services = append(").Line()
 	body.Tab().Tab().Token("services,").Line()
 	// sql
 	_, hasSQL := g.Settings.FindDependency("sql")
 	if hasSQL {
+		has = true
 		body.Tab().Tab().Token("sql.Service(),", gcg.NewPackage("github.com/aacfactory/fns-contrib/databases/sql")).Line()
 	}
 	// deploy auth
 	_, hasAuth := g.Settings.FindDependency("authorizations")
 	if hasAuth {
+		has = true
 		body.Tab().Tab().Token(
 			fmt.Sprintf("authorizations.Service(),"),
 			gcg.NewPackage("github.com/aacfactory/fns/service/builtin/authorizations"),
@@ -110,6 +113,7 @@ func createDep(g model.Generator) (err error) {
 	// deploy permissions
 	_, hasPermissions := g.Settings.FindDependency("permissions")
 	if hasPermissions {
+		has = true
 		body.Tab().Tab().Token(
 			fmt.Sprintf("permissions.Service(),"),
 			gcg.NewPackage("github.com/aacfactory/fns/service/builtin/permissions"),
@@ -119,6 +123,7 @@ func createDep(g model.Generator) (err error) {
 	// mq
 	mq, hasMQ := g.Settings.FindDependency("mq")
 	if hasMQ {
+		has = true
 		body.Tab().Tab().Token(
 			fmt.Sprintf("%s.Service(),", mq.Kind),
 			gcg.NewPackage(fmt.Sprintf("github.com/aacfactory/fns-contrib/message-queues/%s", mq.Kind)),
@@ -128,6 +133,7 @@ func createDep(g model.Generator) (err error) {
 	// cqrs
 	_, hasCqrs := g.Settings.FindDependency("cqrs")
 	if hasCqrs {
+		has = true
 		body.Tab().Tab().Token(
 			"cqrs.Service(),",
 			gcg.NewPackage("github.com/aacfactory/fns-contrib/cqrs"),
@@ -135,6 +141,11 @@ func createDep(g model.Generator) (err error) {
 	}
 	body.Tab().Token(")").Line()
 	body.Return()
+
+	if !has {
+		body = gcg.Statements()
+		body.Return()
+	}
 
 	fn.Body(body)
 	file.AddCode(fn.Build())
