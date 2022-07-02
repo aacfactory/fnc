@@ -54,6 +54,21 @@ func createRepository(g model.Generator) (err error) {
 		"write data repository here",
 		helps,
 	)
+
+	// sql
+	dependency, hasSQL := g.Settings.FindDependency("sql")
+	if hasSQL {
+		switch dependency.Kind {
+		case "postgres":
+			file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/databases/postgres", "_"))
+		case "mysql":
+			file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/databases/mysql", "_"))
+		default:
+
+			break
+		}
+	}
+
 	writer := gcg.FileRender(filepath.Join(dir, "doc.go"), true)
 	renderErr := file.Render(writer)
 	if renderErr != nil {
