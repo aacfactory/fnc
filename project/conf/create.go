@@ -429,7 +429,7 @@ func Create(g model.Generator) (err error) {
 			return
 		}
 		priPEM := pem.EncodeToMemory(&pem.Block{
-			Type:  "RSA PRIVATE KEY",
+			Type:  "PRIVATE KEY",
 			Bytes: x509.MarshalPKCS1PrivateKey(jwtKeyPair),
 		})
 		err = ioutil.WriteFile(filepath.Join(jwtDir, "pri.pem"), priPEM, 0600)
@@ -437,9 +437,15 @@ func Create(g model.Generator) (err error) {
 			err = fmt.Errorf("fnc: create project failed at write jwt rsa private key file, %v", err)
 			return
 		}
+		pub := jwtKeyPair.Public().(*rsa.PublicKey)
+		pubPem, pubErr := x509.MarshalPKIXPublicKey(pub)
+		if pubErr != nil {
+			err = fmt.Errorf("fnc: create project failed at write jwt rsa publich key file, %v", pubErr)
+			return
+		}
 		pubPEM := pem.EncodeToMemory(&pem.Block{
-			Type:  "BEGIN PUBLIC KEY",
-			Bytes: x509.MarshalPKCS1PublicKey(&jwtKeyPair.PublicKey),
+			Type:  "PUBLIC KEY",
+			Bytes: pubPem,
 		})
 		err = ioutil.WriteFile(filepath.Join(jwtDir, "pub.pem"), pubPEM, 0600)
 		if err != nil {
