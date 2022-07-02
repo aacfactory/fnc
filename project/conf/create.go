@@ -36,8 +36,12 @@ func Create(g model.Generator) (err error) {
 	}
 	var jwtKeyPair *rsa.PrivateKey
 	app := Config{
-		Name:    g.Settings.Name,
-		Service: nil,
+		Name: g.Settings.Name,
+		Runtime: &Runtime{
+			MaxWorkers:           256 * 1024,
+			WorkerMaxIdleSeconds: 10,
+			HandleTimeoutSeconds: 10,
+		},
 		Log: &LogConfig{
 			Level:     "info",
 			Formatter: "console",
@@ -114,7 +118,7 @@ func Create(g model.Generator) (err error) {
 	}
 	appConf, _ := yaml.Marshal(app)
 	local := Config{
-		Service: nil,
+		Runtime: nil,
 		Log: &LogConfig{
 			Level:     "debug",
 			Formatter: "console",
@@ -186,7 +190,7 @@ func Create(g model.Generator) (err error) {
 	}
 	localConf, _ := yaml.Marshal(local)
 	dev := Config{
-		Service: nil,
+		Runtime: nil,
 		Log: &LogConfig{
 			Level:     "debug",
 			Formatter: "json",
@@ -254,7 +258,7 @@ func Create(g model.Generator) (err error) {
 	}
 	devConf, _ := yaml.Marshal(dev)
 	qa := Config{
-		Service: nil,
+		Runtime: nil,
 		Log: &LogConfig{
 			Level:     "warn",
 			Formatter: "json",
@@ -322,7 +326,7 @@ func Create(g model.Generator) (err error) {
 	}
 	qaConf, _ := yaml.Marshal(qa)
 	prod := Config{
-		Service: nil,
+		Runtime: nil,
 		Log: &LogConfig{
 			Level:     "error",
 			Formatter: "json",

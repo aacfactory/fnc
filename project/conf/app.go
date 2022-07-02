@@ -22,7 +22,7 @@ import (
 
 type Config struct {
 	Name           string     `yaml:"name,omitempty"`
-	Service        *Service   `yaml:"service,omitempty"`
+	Runtime        *Runtime   `yaml:"runtime,omitempty"`
 	Log            *LogConfig `yaml:"log,omitempty"`
 	OAS            *OAS       `yaml:"oas,omitempty"`
 	Server         *Server    `yaml:"server,omitempty"`
@@ -102,10 +102,10 @@ type Server struct {
 	Interceptors map[string]json.RawMessage `yaml:"interceptors,omitempty"`
 }
 
-type Service struct {
-	MaxWorkers           int `yaml:"maxWorkers,omitempty"`
-	WorkerMaxIdleSeconds int `yaml:"workerMaxIdleSeconds,omitempty"`
-	HandleTimeoutSeconds int `yaml:"handleTimeoutSeconds,omitempty"`
+type Runtime struct {
+	MaxWorkers           int `yaml:"maxWorkers"`
+	WorkerMaxIdleSeconds int `yaml:"workerMaxIdleSeconds"`
+	HandleTimeoutSeconds int `yaml:"handleTimeoutSeconds"`
 }
 
 type SQL struct {
