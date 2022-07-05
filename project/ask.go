@@ -47,7 +47,6 @@ func doAsk(g *model.Generator) (err error) {
 		return
 	}
 	g.Module.Name = modName
-	fmt.Println("modName", ">", modName)
 	// http version
 	needHttp3, needHttp3Err := ask("does project use http3 (y/n): ")
 	if needHttp3Err != nil {

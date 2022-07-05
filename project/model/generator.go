@@ -26,6 +26,7 @@ type Module struct {
 	Name     string
 	Go       string
 	Requires []string
+	Latest   bool
 }
 
 type Contact struct {

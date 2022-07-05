@@ -41,6 +41,11 @@ var Command = &cli.Command{
 			Value:    "",
 			Usage:    "project settings file",
 		},
+		&cli.GenericFlag{
+			Name:     "u",
+			Usage:    "go get -u",
+			Required: false,
+		},
 	},
 	Action: func(ctx *cli.Context) (err error) {
 		projectDir := strings.TrimSpace(ctx.Args().First())
@@ -52,6 +57,7 @@ var Command = &cli.Command{
 			err = fmt.Errorf("fnc: create failed for project path is invalid, %v", err)
 			return
 		}
+		latest := ctx.IsSet("u")
 		settingsPath := ctx.Path("settings")
 		g := model.Generator{}
 		if settingsPath != "" {
@@ -84,6 +90,7 @@ var Command = &cli.Command{
 			}
 		}
 		g.Path = projectDir
+		g.Module.Latest = latest
 		err = create(g)
 		return
 	},

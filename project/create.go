@@ -34,7 +34,7 @@ func create(g model.Generator) (err error) {
 		return
 	}
 	// go get
-	getErr := goGetRequires(g.Module.Requires)
+	getErr := goGetRequires(g.Module.Requires, g.Module.Latest)
 	if getErr != nil {
 		err = getErr
 		return
@@ -103,19 +103,29 @@ func goModTidy() (err error) {
 	return
 }
 
-func goGetRequires(requires []string) (err error) {
-	loading := commons.NewLoading("go get github.com/aacfactory/fns", 500*time.Millisecond)
+func goGetRequires(requires []string, latest bool) (err error) {
+	loadingPlaceholder := "go get github.com/aacfactory/fns"
+	if latest {
+		loadingPlaceholder = "go get -u github.com/aacfactory/fns"
+	}
+	loading := commons.NewLoading(loadingPlaceholder, 500*time.Millisecond)
 	loading.Show()
 	getFnsFin := make(chan error, 1)
-	go func(fin chan error) {
-		getFns := exec.Command("go", "get", "github.com/aacfactory/fns")
+	go func(fin chan error, latest bool) {
+		args := make([]string, 0, 1)
+		args = append(args, "get")
+		if latest {
+			args = append(args, "-u")
+		}
+		args = append(args, "github.com/aacfactory/fns")
+		getFns := exec.Command("go", args...)
 		getFnsErr := getFns.Run()
 		if getFnsErr != nil {
 			fin <- fmt.Errorf("fnc: create project failed at go get github.com/aacfactory/fns, %v", getFnsErr)
 			return
 		}
 		close(fin)
-	}(getFnsFin)
+	}(getFnsFin, latest)
 	cmdErr := <-getFnsFin
 	loading.Close()
 	if cmdErr != nil {
@@ -128,18 +138,28 @@ func goGetRequires(requires []string) (err error) {
 		return
 	}
 	for _, require := range requires {
-		rloading := commons.NewLoading(fmt.Sprintf("go get %s", require), 500*time.Millisecond)
+		rloadingPlaceholder := fmt.Sprintf("go get %s", require)
+		if latest {
+			rloadingPlaceholder = fmt.Sprintf("go get -u %s", require)
+		}
+		rloading := commons.NewLoading(rloadingPlaceholder, 500*time.Millisecond)
 		rloading.Show()
 		getReqFin := make(chan error, 1)
-		go func(fin chan error) {
-			getReq := exec.Command("go", "get", require)
+		go func(fin chan error, latest bool) {
+			args := make([]string, 0, 1)
+			args = append(args, "get")
+			if latest {
+				args = append(args, "-u")
+			}
+			args = append(args, require)
+			getReq := exec.Command("go", args...)
 			getReqErr := getReq.Run()
 			if getReqErr != nil {
 				fin <- fmt.Errorf("fnc: create project failed at go get %s, %v", require, getReqErr)
 				return
 			}
 			close(fin)
-		}(getReqFin)
+		}(getReqFin, latest)
 		reqErr := <-getReqFin
 		rloading.Close()
 		if reqErr != nil {
