@@ -68,6 +68,23 @@ func NewStruct(pkg string, name string, mod *Module) (s *Struct, err error) {
 func findStructInProgram(pkgPath string, name string, mod *Module) (v *Struct, has bool, err error) {
 	pkg := mod.Program.Package(pkgPath)
 	if pkg == nil {
+		modRootName := mod.Name[strings.LastIndex(mod.Name, "/")+1:]
+		depPkgPath := pkgPath[strings.LastIndex(pkgPath, modRootName):]
+		for _, info := range mod.Program.Created {
+			created := info.String()
+			if strings.Index(created, "main") == 0 {
+				created = mod.Name + created[4:]
+			}
+			if depPkgPath == created || pkgPath == created {
+				v, has, err = findStructInProgram(info.String(), name, mod)
+				if has {
+					return
+				}
+			}
+		}
+		if !has {
+			return
+		}
 		return
 	}
 	var srcFile *ast.File

@@ -127,13 +127,13 @@ func (mod *Module) GetPackageOfFile(f *ast.File) (name string, ident string, has
 func (mod *Module) FindDeps(pkgPath string) (deps map[string]*Module, err error) {
 	deps = make(map[string]*Module)
 	for s, program := range mod.Deps {
-		if strings.Contains(pkgPath, s) {
+		if pkgPath == s || strings.Contains(pkgPath, s+"/") {
 			deps[s] = program
 		}
 	}
 	if len(deps) == 0 {
 		for _, require := range mod.Requires {
-			if strings.Contains(pkgPath, require.Name) {
+			if pkgPath == require.Name || strings.Contains(pkgPath, require.Name+"/") {
 				dep, depErr := NewModule(filepath.Join(require.Path(), "go.mod"))
 				if depErr != nil {
 					err = fmt.Errorf("load dep(%s) failed, %s, %v", require.Name, require.Path(), depErr)
