@@ -408,6 +408,20 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 				body.Tab().Tab().Tab().Token(fmt.Sprintf("err = errors.ServiceError(\"%s: begin sql transaction failed\").WithMeta(\"service\", _name).WithMeta(\"fn\", %s).WithCause(beginTransactionErr)", svc.Name(), key)).Line()
 				body.Tab().Tab().Tab().Token("return").Line()
 				body.Tab().Tab().Token("}").Line()
+			case "postgres":
+				body.Tab().Tab().Token("// sql begin transaction").Line()
+				body.Tab().Token("beginTransactionErr := postgres.BeginTransaction(ctx)", gcg.NewPackage("github.com/aacfactory/fns-contrib/databases/postgres")).Line()
+				body.Tab().Tab().Token("if beginTransactionErr != nil {").Line()
+				body.Tab().Tab().Tab().Token(fmt.Sprintf("err = errors.ServiceError(\"%s: begin sql transaction failed\").WithMeta(\"service\", _name).WithMeta(\"fn\", %s).WithCause(beginTransactionErr)", svc.Name(), key)).Line()
+				body.Tab().Tab().Tab().Token("return").Line()
+				body.Tab().Tab().Token("}").Line()
+			case "mysql":
+				body.Tab().Tab().Token("// sql begin transaction").Line()
+				body.Tab().Token("beginTransactionErr := mysql.BeginTransaction(ctx)", gcg.NewPackage("github.com/aacfactory/fns-contrib/databases/mysql")).Line()
+				body.Tab().Tab().Token("if beginTransactionErr != nil {").Line()
+				body.Tab().Tab().Tab().Token(fmt.Sprintf("err = errors.ServiceError(\"%s: begin sql transaction failed\").WithMeta(\"service\", _name).WithMeta(\"fn\", %s).WithCause(beginTransactionErr)", svc.Name(), key)).Line()
+				body.Tab().Tab().Tab().Token("return").Line()
+				body.Tab().Tab().Token("}").Line()
 			default:
 				err = fmt.Errorf("tx kind is not supported, kind is %s", txKind)
 				return

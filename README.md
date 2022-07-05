@@ -147,7 +147,7 @@ type Sample struct {
     example: @permission roleA,roleB
 * @transaction
     > open transaction in fn, and auto commit after succeed action or rollback after failed action.
-    support sql only now.
+    support sql, postgres and mysql only now.
     example: @transaction sql
 * @title
     > title 
