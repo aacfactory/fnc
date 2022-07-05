@@ -59,5 +59,7 @@ func (x *Loading) Show() {
 }
 
 func (x *Loading) Close() {
+	time.Sleep(500 * time.Millisecond)
 	close(x.stop)
+	time.Sleep(500 * time.Millisecond)
 }
