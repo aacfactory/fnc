@@ -444,15 +444,42 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 		}
 		// tx
 		if hasTx {
-			body.Tab().Tab().Token("// sql close transaction").Line()
-			body.Tab().Tab().Token("if err == nil {").Line()
-			body.Tab().Tab().Tab().Token("commitTransactionErr := sql.CommitTransaction(ctx)").Line()
-			body.Tab().Tab().Tab().Token("if commitTransactionErr != nil {").Line()
-			body.Tab().Tab().Tab().Tab().Token(fmt.Sprintf("err = errors.ServiceError(\"%s: commit sql transaction failed\").WithMeta(\"service\", _name).WithMeta(\"fn\", %s).WithCause(commitTransactionErr)", svc.Name(), key)).Line()
-			body.Tab().Tab().Tab().Tab().Token("_ = sql.RollbackTransaction(ctx)").Line()
-			body.Tab().Tab().Tab().Tab().Token("return").Line()
-			body.Tab().Tab().Tab().Token("}").Line()
-			body.Tab().Tab().Token("}").Line()
+			switch txKind {
+			case "sql":
+				body.Tab().Tab().Token("// sql close transaction").Line()
+				body.Tab().Tab().Token("if err == nil {").Line()
+				body.Tab().Tab().Tab().Token("commitTransactionErr := sql.CommitTransaction(ctx)").Line()
+				body.Tab().Tab().Tab().Token("if commitTransactionErr != nil {").Line()
+				body.Tab().Tab().Tab().Tab().Token(fmt.Sprintf("err = errors.ServiceError(\"%s: commit sql transaction failed\").WithMeta(\"service\", _name).WithMeta(\"fn\", %s).WithCause(commitTransactionErr)", svc.Name(), key)).Line()
+				body.Tab().Tab().Tab().Tab().Token("_ = sql.RollbackTransaction(ctx)").Line()
+				body.Tab().Tab().Tab().Tab().Token("return").Line()
+				body.Tab().Tab().Tab().Token("}").Line()
+				body.Tab().Tab().Token("}").Line()
+			case "postgres":
+				body.Tab().Tab().Token("// sql close transaction").Line()
+				body.Tab().Tab().Token("if err == nil {").Line()
+				body.Tab().Tab().Tab().Token("commitTransactionErr := postgres.CommitTransaction(ctx)").Line()
+				body.Tab().Tab().Tab().Token("if commitTransactionErr != nil {").Line()
+				body.Tab().Tab().Tab().Tab().Token(fmt.Sprintf("err = errors.ServiceError(\"%s: commit sql transaction failed\").WithMeta(\"service\", _name).WithMeta(\"fn\", %s).WithCause(commitTransactionErr)", svc.Name(), key)).Line()
+				body.Tab().Tab().Tab().Tab().Token("_ = postgres.RollbackTransaction(ctx)").Line()
+				body.Tab().Tab().Tab().Tab().Token("return").Line()
+				body.Tab().Tab().Tab().Token("}").Line()
+				body.Tab().Tab().Token("}").Line()
+			case "mysql":
+				body.Tab().Tab().Token("// sql close transaction").Line()
+				body.Tab().Tab().Token("if err == nil {").Line()
+				body.Tab().Tab().Tab().Token("commitTransactionErr := mysql.CommitTransaction(ctx)").Line()
+				body.Tab().Tab().Tab().Token("if commitTransactionErr != nil {").Line()
+				body.Tab().Tab().Tab().Tab().Token(fmt.Sprintf("err = errors.ServiceError(\"%s: commit sql transaction failed\").WithMeta(\"service\", _name).WithMeta(\"fn\", %s).WithCause(commitTransactionErr)", svc.Name(), key)).Line()
+				body.Tab().Tab().Tab().Tab().Token("_ = mysql.RollbackTransaction(ctx)").Line()
+				body.Tab().Tab().Tab().Tab().Token("return").Line()
+				body.Tab().Tab().Tab().Token("}").Line()
+				body.Tab().Tab().Token("}").Line()
+			default:
+				err = fmt.Errorf("tx kind is not supported, kind is %s", txKind)
+				return
+			}
+
 		}
 		body.Tab().Tab().Token("break").Line()
 	}
