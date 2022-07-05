@@ -36,7 +36,7 @@ Enable fn annotations.
 // @fn query
 // @validate true
 // @authorization true
-// @permission false
+// @permission roleA,roleB
 // @title query
 // @description query
 func query(ctx context.Context, argument QueryArgument) (result []*Sample, err errors.CodeError) {
@@ -144,7 +144,7 @@ type Sample struct {
     example: @authorization true
 * @permission
     > fn has permission
-    not implement
+    example: @permission roleA,roleB
 * @transaction
     > open transaction in fn, and auto commit after succeed action or rollback after failed action.
     support sql only now.
