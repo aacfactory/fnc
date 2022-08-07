@@ -41,9 +41,10 @@ var Command = &cli.Command{
 			Value:    "",
 			Usage:    "project settings file",
 		},
-		&cli.GenericFlag{
+		&cli.BoolFlag{
 			Name:     "u",
 			Usage:    "go get -u",
+			Value:    false,
 			Required: false,
 		},
 	},
