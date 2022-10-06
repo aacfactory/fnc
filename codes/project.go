@@ -119,6 +119,7 @@ func (p *Project) Scan() (err error) {
 		service := &Service{
 			DirPath:     filepath.Join(p.dir, servicePath),
 			Package:     info.Pkg.Name(),
+			PackagePath: info.Pkg.Path(),
 			Imports:     make([]*Import, 0, 1),
 			fns:         make(map[string]*Fn),
 			Annotations: serviceAnnotations,

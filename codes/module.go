@@ -152,7 +152,7 @@ func (mod *Module) FindDeps(pkgPath string) (deps map[string]*Module, err error)
 }
 
 func (mod *Module) GetStruct(pkg string, name string) (v *Struct, has bool) {
-	key := fmt.Sprintf("%s:%s", pkg, name)
+	key := fmt.Sprintf("%s.%s", pkg, name)
 	v, has = mod.Structs[key]
 	return
 }

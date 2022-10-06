@@ -511,10 +511,14 @@ func (svc *Service) generateFileServiceDocument() (code gcg.Code, err error) {
 				body.Token(fmt.Sprintf("sd.AddFn(")).Line()
 				body.Token(fmt.Sprintf("\"%s\", \"%s\", \"%s\",%v, %v,", fn.Name(), fn.Title(), fn.Description(), fn.HasAuthorization(), fn.HasDeprecated())).Line()
 				if fn.HasParam() {
-					body.Add(fn.Param.generateObjectDocument()).Symbol(",").Line()
+					body.Add(fn.Param.generateObjectDocument(svc.PackagePath)).Symbol(",").Line()
+				} else {
+					body.Token("nil").Symbol(",").Line()
 				}
 				if fn.HasResult() {
-					body.Add(fn.Result.generateObjectDocument()).Symbol(",").Line()
+					body.Add(fn.Result.generateObjectDocument(svc.PackagePath)).Symbol(",").Line()
+				} else {
+					body.Token("nil").Symbol(",").Line()
 				}
 				body.Token(")").Line()
 			}

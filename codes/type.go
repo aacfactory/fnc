@@ -265,7 +265,7 @@ func (t *Type) ObjectKey() (v string) {
 	return
 }
 
-func (t *Type) generateObject() (code *gcg.Statement) {
+func (t *Type) generateObject(servicePKG string) (code *gcg.Statement) {
 	code = gcg.Statements()
 	if t.IsBuiltin() {
 		switch t.Indent {
@@ -303,24 +303,24 @@ func (t *Type) generateObject() (code *gcg.Statement) {
 		return
 	}
 	if t.IsStruct() {
-		code.Add(t.Struct.generateObject())
+		code.Add(t.Struct.generateObject(servicePKG))
 		return
 	}
 	if t.IsStar() {
-		code.Add(t.X.Struct.generateObject())
+		code.Add(t.X.Struct.generateObject(servicePKG))
 		return
 	}
 	if t.IsArray() {
 		code.Token("documents.Array(").Line()
 		code.Token(fmt.Sprintf("\"\", \"\", \"\",")).Line()
-		code.Add(t.X.generateObject()).Symbol(",").Line()
+		code.Add(t.X.generateObject(servicePKG)).Symbol(",").Line()
 		code.Symbol(")")
 		return
 	}
 	if t.IsMap() {
 		code.Token("documents.Map(").Line()
 		code.Token(fmt.Sprintf("\"\", \"\", \"\",")).Line()
-		code.Add(t.Y.generateObject()).Symbol(",").Line()
+		code.Add(t.Y.generateObject(servicePKG)).Symbol(",").Line()
 		code.Symbol(")")
 		return
 	}
@@ -437,11 +437,11 @@ func (t *Type) IsFnsJsonObject() bool {
 }
 
 func (t *Type) IsFnsEmpty() bool {
-	if t.IsStruct() && t.Indent == "github.com/aacfactory/fns.Empty" {
+	if t.IsStruct() && t.Indent == "github.com/aacfactory/fns/service.Empty" {
 
 	}
 	if t.IsStar() {
-		return t.X.Indent == "github.com/aacfactory/fns.Empty"
+		return t.X.Indent == "github.com/aacfactory/fns/service.Empty"
 	}
 	return false
 }
@@ -645,10 +645,29 @@ func tryDecodeCommonType(e ast.Expr, imports Imports) (typ *Type, err error) {
 			} else if structName == "Empty" {
 				typ = &Type{
 					Kind:   "struct",
-					Indent: "github.com/aacfactory/fns.Empty",
+					Indent: "github.com/aacfactory/fns/service.Empty",
 					Import: _import,
 					Struct: &Struct{
-						Package:     "github.com/aacfactory/fns",
+						Package:     "github.com/aacfactory/fns/service",
+						Name:        "Empty",
+						Fields:      nil,
+						Annotations: nil,
+					},
+					X: nil,
+					Y: nil,
+				}
+			} else {
+				err = fmt.Errorf("decode type of %s failed, expr type is %v", e, reflect.TypeOf(e))
+				return
+			}
+		case "github.com/aacfactory/fns/service":
+			if structName == "Empty" {
+				typ = &Type{
+					Kind:   "struct",
+					Indent: "github.com/aacfactory/fns/service.Empty",
+					Import: _import,
+					Struct: &Struct{
+						Package:     "github.com/aacfactory/fns/service",
 						Name:        "Empty",
 						Fields:      nil,
 						Annotations: nil,

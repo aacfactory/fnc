@@ -123,6 +123,7 @@ func findStructInProgram(pkgPath string, name string, mod *Module) (v *Struct, h
 		Name:        name,
 		Fields:      make([]*Field, 0, 1),
 		Annotations: getAnnotations(doc),
+		Ref:         false,
 	}
 	mod.SetStruct(v)
 	if structType.Fields != nil && structType.Fields.NumFields() > 0 {
@@ -170,9 +171,10 @@ type Struct struct {
 	Name        string
 	Fields      []*Field
 	Annotations map[string]string
+	Ref         bool
 }
 
-func (s Struct) Title() (title string) {
+func (s *Struct) Title() (title string) {
 	v, has := s.Annotations["title"]
 	if has {
 		title = v
@@ -181,7 +183,7 @@ func (s Struct) Title() (title string) {
 	return
 }
 
-func (s Struct) Description() (description string) {
+func (s *Struct) Description() (description string) {
 	v, has := s.Annotations["description"]
 	if has {
 		description = v
@@ -190,12 +192,12 @@ func (s Struct) Description() (description string) {
 	return
 }
 
-func (s Struct) Key() (key string) {
+func (s *Struct) Key() (key string) {
 	key = s.Package + "." + s.Name
 	return
 }
 
-func (s Struct) ObjectKey() (v string) {
+func (s *Struct) ObjectKey() (v string) {
 	v = strings.ReplaceAll(s.Key(), "/", "_")
 	v = strings.ReplaceAll(v, ".", "_")
 	atoms, _ := cases.Snake().Parse(v)
@@ -203,15 +205,30 @@ func (s Struct) ObjectKey() (v string) {
 	return
 }
 
-func (s Struct) generateObject() (code *gcg.Statement) {
+func (s *Struct) generateObjectRef() (code *gcg.Statement) {
 	code = gcg.Statements()
+	code.Token(fmt.Sprintf("documents.RefStruct(\"%s\", \"%s\")", s.Package, s.Name))
+	return
+}
+
+func (s *Struct) generateObject(servicePkg string) (code *gcg.Statement) {
+	code = gcg.Statements()
+	if s.Ref {
+		code.Token(fmt.Sprintf("documents.RefStruct(\"%s\", \"%s\")", s.Package, s.Name))
+		return
+	}
+	if s.Package != servicePkg && s.Package != "main/repository" {
+		code.Token(fmt.Sprintf("documents.RefStruct(\"%s\", \"%s\")", s.Package, s.Name))
+		return
+	}
+	s.Ref = true
 	code.Token(fmt.Sprintf("documents.Struct(\"%s\", \"%s\", \"%s\", \"%s\")", s.Package, s.Name, s.Title(), s.Description()))
 	if s.Fields != nil && len(s.Fields) > 0 {
 		code.Token(".").Line()
 		i := 0
 		for _, field := range s.Fields {
 			i++
-			code.Add(field.generateObject())
+			code.Add(field.generateObject(servicePkg))
 			if i != len(s.Fields) {
 				code.Token(".").Line()
 			}
@@ -274,7 +291,7 @@ func (x *Field) Enum() (enum string) {
 	return
 }
 
-func (x *Field) generateObject() (code *gcg.Statement) {
+func (x *Field) generateObject(servicePKG string) (code *gcg.Statement) {
 	code = gcg.Statements()
 	key, hasKey := x.Tag["json"]
 	if !hasKey {
@@ -290,7 +307,7 @@ func (x *Field) generateObject() (code *gcg.Statement) {
 		return
 	}
 
-	fc := x.Type.generateObject()
+	fc := x.Type.generateObject(servicePKG)
 	if x.Title() != "" {
 		fc.Token(fmt.Sprintf(".SetTitle(\"%s\")", x.Title()))
 	}

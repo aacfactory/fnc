@@ -22,7 +22,7 @@ import (
 )
 
 func TestNewProject(t *testing.T) {
-	x := `D:\studio\workspace\go\src\github.com\aacfactory\fns-example\cluster\posts`
+	x := `D:\studio\workspace\go\src\github.com\aacfactory\fns-example\standalone`
 	p, pErr := codes.NewProject(x, true)
 	if pErr != nil {
 		t.Error(pErr)

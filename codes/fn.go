@@ -34,8 +34,8 @@ func (x *FnField) key() (v string) {
 	return
 }
 
-func (x *FnField) generateObjectDocument() (code gcg.Code) {
-	code = x.Type.generateObject()
+func (x *FnField) generateObjectDocument(servicePKG string) (code gcg.Code) {
+	code = x.Type.generateObject(servicePKG)
 	return
 }
 

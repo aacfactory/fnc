@@ -30,6 +30,7 @@ type Component struct {
 type Service struct {
 	DirPath     string
 	Package     string
+	PackagePath string
 	Imports     Imports
 	fns         map[string]*Fn
 	Annotations map[string]string
