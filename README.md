@@ -4,7 +4,7 @@ fns codes generator
 
 ## Install
 ```bash
-go install github.com/aacfactory/fnc
+go install github.com/aacfactory/fnc@latest
 ```
 ## Usage
 ### Create project
