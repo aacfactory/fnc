@@ -18,9 +18,11 @@ package codes
 
 import (
 	"fmt"
+	"github.com/aacfactory/fnc/commons"
 	"github.com/urfave/cli/v2"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 var Command = &cli.Command{
@@ -31,32 +33,45 @@ var Command = &cli.Command{
 	ArgsUsage:   "",
 	Category:    "",
 	Action: func(ctx *cli.Context) (err error) {
+		//generating := commons.NewLoading("generating ...", 500*time.Millisecond)
+		//generating.Show()
+		//defer generating.Close()
+
 		projectDir := strings.TrimSpace(ctx.Args().First())
 		if projectDir == "" {
 			projectDir = "."
 		}
 		projectDir, err = filepath.Abs(projectDir)
 		if err != nil {
+			//loading.Close()
 			err = fmt.Errorf("fnc: codes failed for project path is invalid, %v", err)
 			return
 		}
+		scanning := commons.NewLoading("scanning ...", 500*time.Millisecond)
+		scanning.Show()
 		debug := ctx.Bool("debug")
 		p, pErr := NewProject(projectDir, debug)
 		if pErr != nil {
+			scanning.Close()
 			err = pErr
 			return
 		}
+
 		scanErr := p.Scan()
+		scanning.Close()
 		if scanErr != nil {
 			err = scanErr
 			return
 		}
+		generating := commons.NewLoading("generating ...", 500*time.Millisecond)
+		generating.Show()
 		generateErr := p.Generate()
+		generating.Close()
 		if generateErr != nil {
 			err = generateErr
 			return
 		}
-
+		fmt.Println("generated!!!")
 		return
 	},
 	Flags: []cli.Flag{

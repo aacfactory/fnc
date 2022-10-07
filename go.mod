@@ -8,6 +8,7 @@ require (
 	github.com/aacfactory/gcg v1.0.4
 	github.com/aacfactory/logs v1.2.0
 	github.com/goccy/go-yaml v1.9.5
+	github.com/gosuri/uilive v0.0.4
 	github.com/urfave/cli/v2 v2.8.1
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
 	golang.org/x/tools v0.1.11

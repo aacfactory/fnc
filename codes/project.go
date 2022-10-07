@@ -51,6 +51,7 @@ func NewProject(projectDirPath string, debug bool) (p *Project, err error) {
 		err = fmt.Errorf("fnc: new project failed for create log failed, %v", logErr)
 		return
 	}
+
 	p = &Project{
 		log:      log,
 		dir:      projectDirPath,
@@ -103,10 +104,6 @@ func (p *Project) Scan() (err error) {
 			}
 		}
 		if serviceName == "" {
-			//if len(fns) > 0 {
-			//	err = fmt.Errorf("fnc: scan fn failed for some fns has no named service")
-			//	return
-			//}
 			continue
 		}
 		if len(fns) == 0 {

@@ -24,12 +24,11 @@ import (
 	"github.com/aacfactory/fnc/ssc"
 	"github.com/urfave/cli/v2"
 	"os"
-	"runtime"
 )
 
 const (
 	Name      = "FNC"
-	Version   = "v1.10.13"
+	Version   = "v1.10.14"
 	Usage     = "see COMMANDS"
 	Copyright = `Copyright 2021 Wang Min Xiang
 
@@ -47,7 +46,7 @@ limitations under the License.`
 )
 
 func main() {
-	runtime.GOMAXPROCS(0)
+	//runtime.GOMAXPROCS(runtime.NumCPU())
 	app := cli.NewApp()
 	app.Name = Name
 	app.Usage = Usage

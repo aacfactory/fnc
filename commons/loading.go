@@ -18,6 +18,7 @@ package commons
 
 import (
 	"fmt"
+	"github.com/gosuri/uilive"
 	"time"
 )
 
@@ -26,6 +27,7 @@ func NewLoading(title string, duration time.Duration) *Loading {
 		title:    title,
 		duration: duration,
 		stop:     make(chan struct{}, 1),
+		writer:   uilive.New(),
 	}
 }
 
@@ -33,10 +35,12 @@ type Loading struct {
 	title    string
 	duration time.Duration
 	stop     chan struct{}
+	writer   *uilive.Writer
 }
 
 func (x *Loading) Show() {
 	go func(x *Loading) {
+		x.writer.Start()
 		c := []string{"/", "-", "\\", "|"}
 		i := 0
 		for {
@@ -47,15 +51,18 @@ func (x *Loading) Show() {
 				break
 			case <-time.After(x.duration):
 				p := c[i%len(c)]
-				fmt.Printf("\r%s %v", x.title, p)
+				fmt.Fprintf(x.writer, "%s %v\n", x.title, p)
+				//fmt.Printf("\r%s %v", x.title, p)
 				i++
 			}
 			if stopped {
-				fmt.Println()
+				x.writer.Stop()
+				//fmt.Println()
 				break
 			}
 		}
 	}(x)
+	time.Sleep(500 * time.Millisecond)
 }
 
 func (x *Loading) Close() {
