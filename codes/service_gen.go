@@ -351,18 +351,30 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 			body.Tab().Tab().Token("}").Line()
 		}
 		// permission
-		if roles, hasPermissions := fn.GetPermissions(); hasPermissions {
-			for i, s := range roles {
-				roles[i] = fmt.Sprintf("\"%s\"", s)
+		if oas, hasPermissions := fn.GetPermissions(); hasPermissions {
+			items := make([]string, 0, 1)
+			for _, s := range oas {
+				ss := strings.Split(s, ":")
+				if len(ss) == 1 {
+					items = append(items, strings.TrimSpace(s), "*")
+				} else if len(ss) == 2 {
+					items = append(items, strings.TrimSpace(ss[0]), strings.TrimSpace(ss[1]))
+				} else {
+					err = fmt.Errorf("permissions is invalid, %s.%s", svc.Name(), fn.Name())
+					return
+				}
 			}
-			if len(roles) == 0 {
-				err = fmt.Errorf("there is no roles in permission")
-				return
+			for i := 0; i < len(items); i++ {
+				items[i] = fmt.Sprintf("\"%s\"", items[i])
 			}
 			body.Tab().Tab().Token("// permission").Line()
-			body.Tab().Tab().Token(fmt.Sprintf("verifyPermissionsErr := permissions.Verify(ctx, %s)", strings.Join(roles, ",")), gcg.NewPackage("github.com/aacfactory/fns/endpoints/permissions")).Line()
-			body.Tab().Tab().Token("if verifyPermissionsErr != nil {").Line()
-			body.Tab().Tab().Tab().Token(fmt.Sprintf("err = verifyPermissionsErr.WithMeta(\"service\", _name).WithMeta(\"fn\", %s)", key)).Line()
+			body.Tab().Tab().Token(fmt.Sprintf("enforced, enforceErr := rbac.BatchEnforceRequest(ctx, %s)", strings.Join(items, ",")), gcg.NewPackage("github.com/aacfactory/fns/endpoints/rbac")).Line()
+			body.Tab().Tab().Token("if enforceErr != nil {").Line()
+			body.Tab().Tab().Tab().Token(fmt.Sprintf("err = errors.ServiceError(\"permissions enforce failed\").WithCause(enforceErr).WithMeta(\"service\", _name).WithMeta(\"fn\", %s)", key)).Line()
+			body.Tab().Tab().Tab().Token("return").Line()
+			body.Tab().Tab().Token("}").Line()
+			body.Tab().Tab().Token("if !enforced {").Line()
+			body.Tab().Tab().Tab().Token(fmt.Sprintf("err = errors.Forbidden(\"forbidden\").WithMeta(\"service\", _name).WithMeta(\"fn\", %s)", key)).Line()
 			body.Tab().Tab().Tab().Token("return").Line()
 			body.Tab().Tab().Token("}").Line()
 		}

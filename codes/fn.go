@@ -106,7 +106,7 @@ func (f *Fn) HasDeprecated() (v bool) {
 	return
 }
 
-func (f *Fn) GetPermissions() (roles []string, v bool) {
+func (f *Fn) GetPermissions() (oa []string, v bool) {
 	values, has := f.Annotations["permission"]
 	if !has {
 		return
@@ -120,8 +120,9 @@ func (f *Fn) GetPermissions() (roles []string, v bool) {
 		if item == "" {
 			continue
 		}
-		roles = append(roles, item)
+		oa = append(oa, item)
 	}
+	v = true
 	return
 }
 

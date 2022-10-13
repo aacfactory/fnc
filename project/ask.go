@@ -214,14 +214,14 @@ func doAsk(g *model.Generator) (err error) {
 		})
 	}
 	// permissions
-	needPermissions, needPermissionsErr := ask("does project need permissions (y/n): ")
+	needPermissions, needPermissionsErr := ask("does project need rbac (y/n): ")
 	if needPermissionsErr != nil {
 		err = needPermissionsErr
 		return
 	}
 	if strings.ToLower(needPermissions) == "y" {
 		//storeAsk := "permissions stores:\n\t1) postgres\n\t2) mysql\n\t3) dgraph\n\t4) rgraph\nplease enter the number: "
-		storeAsk := "permissions stores:\n\t1) postgres\n\t2) mysql\nplease enter the number: "
+		storeAsk := "rbac stores:\n\t1) postgres\n\t2) mysql\nplease enter the number: "
 		storeNo, storeNoErr := ask(storeAsk)
 		if storeNoErr != nil {
 			err = storeNoErr
@@ -231,22 +231,22 @@ func doAsk(g *model.Generator) (err error) {
 		switch storeNo {
 		case "1":
 			store = "postgres"
-			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/store/postgres")
+			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/rbac/store/postgres")
 		case "2":
 			store = "mysql"
-			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/store/mysql")
+			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/rbac/store/mysql")
 		case "3":
 			store = "dgraph"
-			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/store/dgraph")
+			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/rbac/store/dgraph")
 		case "4":
 			store = "rgraph"
-			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/permissions/store/rgraph")
+			g.Module.Requires = append(g.Module.Requires, "github.com/aacfactory/fns-contrib/rbac/store/rgraph")
 		default:
 			err = fmt.Errorf("fnc: please choose in list permissions policy store")
 			return
 		}
 		g.Settings.Dependencies = append(g.Settings.Dependencies, &model.Dependency{
-			Name: "permissions",
+			Name: "rbac",
 			Kind: store,
 		})
 	}

@@ -51,16 +51,16 @@ func createDep(g model.Generator) (err error) {
 			default:
 				break
 			}
-		case "permissions":
+		case "rbac":
 			switch dependency.Kind {
 			case "postgres":
-				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/store/postgres", "_"))
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/rbac/store/postgres", "_"))
 			case "mysql":
-				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/store/mysql", "_"))
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/rbac/store/mysql", "_"))
 			case "dgraph":
-				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/store/dgraph", "_"))
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/rbac/store/dgraph", "_"))
 			case "rgraph":
-				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/permissions/store/rgraph", "_"))
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/rbac/store/rgraph", "_"))
 			default:
 				break
 			}
@@ -111,12 +111,12 @@ func createDep(g model.Generator) (err error) {
 	}
 
 	// deploy permissions
-	_, hasPermissions := g.Settings.FindDependency("permissions")
+	_, hasPermissions := g.Settings.FindDependency("rbac")
 	if hasPermissions {
 		has = true
 		body.Tab().Tab().Token(
-			fmt.Sprintf("permissions.Service(),"),
-			gcg.NewPackage("github.com/aacfactory/fns/service/builtin/permissions"),
+			fmt.Sprintf("rbac.Service(),"),
+			gcg.NewPackage("github.com/aacfactory/fns/service/builtin/rbac"),
 		).Line()
 	}
 
