@@ -341,6 +341,27 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 			body.Tab().Tab().Tab().Token("return").Line()
 			body.Tab().Tab().Token("}").Line()
 		}
+		// repository
+		repository := fn.Repository()
+		if repository != "" {
+			db := repository[0:strings.Index(repository, ":")]
+			repository = repository[strings.Index(repository, ":")+1:]
+			body.Tab().Tab().Token("// switch repository").Line()
+			switch db {
+			case "postgres":
+				body.Tab().Tab().Token(fmt.Sprintf("ctx = postgres.SwitchDatabase(ctx, \"%s\")", repository), gcg.NewPackage("github.com/aacfactory/fns-contrib/databases/postgres")).Line()
+				break
+			case "mysql":
+				body.Tab().Tab().Token(fmt.Sprintf("ctx = mysql.SwitchDatabase(ctx, \"%s\")", repository), gcg.NewPackage("github.com/aacfactory/fns-contrib/databases/mysql")).Line()
+				break
+			case "sql":
+				body.Tab().Tab().Token(fmt.Sprintf("ctx = sql.SwitchDatabase(ctx, \"%s\")", repository), gcg.NewPackage("github.com/aacfactory/fns-contrib/databases/sql")).Line()
+				break
+			default:
+				err = fmt.Errorf("repository of fn(%s) is not supported", fn.FuncName)
+				return
+			}
+		}
 		// authorization
 		if fn.HasAuthorization() {
 			body.Tab().Tab().Token("// verify authorizations").Line()

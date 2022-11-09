@@ -131,6 +131,11 @@ func (f *Fn) IsInternal() (v bool) {
 	return
 }
 
+func (f *Fn) Repository() (v string) {
+	v, _ = f.Annotations["repository"]
+	return
+}
+
 func (f *Fn) HasTx() (kind string, opts []string, has bool) {
 	kind = f.Annotations["transactional"]
 	has = kind != ""
