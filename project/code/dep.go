@@ -27,40 +27,52 @@ import (
 func createDep(g model.Generator) (err error) {
 	file := gcg.NewFileWithoutNote("modules")
 	file.AddImport(gcg.NewPackage("github.com/aacfactory/fns/service"))
+	authComponents := make([]string, 0, 1)
+	rbacComponents := make([]string, 0, 1)
 	for _, dependency := range g.Settings.Dependencies {
 		switch dependency.Name {
 		case "authorizations":
 			es := strings.Split(dependency.Kind, ":")
 			switch es[0] {
 			case "jwt":
-				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/encoding/jwt", "_"))
+				authComponents = append(authComponents, "jwt.Component()")
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/encoding/jwt", "jwt"))
 			default:
 				break
 			}
 			switch es[1] {
 			case "redis":
-				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/redis", "_"))
+				authComponents = append(authComponents, "authredis.Component()")
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/redis", "authredis"))
 			case "postgres":
-				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/postgres", "_"))
+				authComponents = append(authComponents, "authpostgre.Component()")
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/postgres", "authpostgre"))
 			case "mysql":
-				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/mysql", "_"))
+				authComponents = append(authComponents, "authmysql.Component()")
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/mysql", "authmysql"))
 			case "dgraph":
-				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/dgraph", "_"))
+				authComponents = append(authComponents, "authdgraph.Component()")
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/dgraph", "authdgraph"))
 			case "rgraph":
-				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/rgraph", "_"))
+				authComponents = append(authComponents, "authrgraph.Component()")
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/authorizations/store/rgraph", "authrgraph"))
 			default:
 				break
 			}
 		case "rbac":
 			switch dependency.Kind {
 			case "postgres":
-				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/rbac/store/postgres", "_"))
+				rbacComponents = append(rbacComponents, "rbacpostgres.Component()")
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/rbac/store/postgres", "rbacpostgres"))
 			case "mysql":
-				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/rbac/store/mysql", "_"))
+				rbacComponents = append(rbacComponents, "rbacmysql.Component()")
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/rbac/store/mysql", "rbacmysql"))
 			case "dgraph":
-				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/rbac/store/dgraph", "_"))
+				rbacComponents = append(rbacComponents, "rbacdgraph.Component()")
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/rbac/store/dgraph", "rbacdgraph"))
 			case "rgraph":
-				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/rbac/store/rgraph", "_"))
+				rbacComponents = append(rbacComponents, "rbacrgraph.Component()")
+				file.AddImport(gcg.NewPackageWithAlias("github.com/aacfactory/fns-contrib/rbac/store/rgraph", "rbacrgraph"))
 			default:
 				break
 			}
@@ -104,8 +116,9 @@ func createDep(g model.Generator) (err error) {
 	_, hasAuth := g.Settings.FindDependency("authorizations")
 	if hasAuth {
 		has = true
+
 		body.Tab().Tab().Token(
-			fmt.Sprintf("authorizations.Service(),"),
+			fmt.Sprintf("authorizations.Service(%s),", strings.Join(authComponents, ", ")),
 			gcg.NewPackage("github.com/aacfactory/fns/service/builtin/authorizations"),
 		).Line()
 	}
@@ -115,7 +128,7 @@ func createDep(g model.Generator) (err error) {
 	if hasPermissions {
 		has = true
 		body.Tab().Tab().Token(
-			fmt.Sprintf("rbac.Service(),"),
+			fmt.Sprintf("rbac.Service(%s),", strings.Join(rbacComponents, ", ")),
 			gcg.NewPackage("github.com/aacfactory/fns/service/builtin/rbac"),
 		).Line()
 	}
