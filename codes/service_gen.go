@@ -281,7 +281,7 @@ func (svc *Service) generateFileService() (code gcg.Code, err error) {
 	v.Name("Service")
 	v.AddResult("svc", gcg.QualifiedIdent(gcg.NewPackage("github.com/aacfactory/fns/service"), "Service"))
 	body := gcg.Statements()
-	// todo components
+	// components
 	body.Tab().Token("components := []service.Component{", gcg.NewPackage("github.com/aacfactory/fns/service"))
 	if len(svc.Components) > 0 {
 		cidx := 0
@@ -424,7 +424,7 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 			if fn.HasValidate() {
 				body.Tab().Tab().Token("validateErr := validators.Validate(arg)", gcg.NewPackage("github.com/aacfactory/fns/service/validators")).Line()
 				body.Tab().Tab().Token("if validateErr != nil {").Line()
-				body.Tab().Tab().Tab().Token(fmt.Sprintf("err = errors.BadRequest(\"%s: invalid request argument\").WithMeta(\"service\", _name).WithMeta(\"fn\", %s).WithCause(validateErr)", svc.Name(), key)).Line()
+				body.Tab().Tab().Tab().Token(fmt.Sprintf("err = validateErr.WithMeta(\"service\", _name).WithMeta(\"fn\", %s).WithCause(validateErr)", key)).Line()
 				body.Tab().Tab().Token("return").Line()
 				body.Tab().Tab().Token("}").Line()
 			}
