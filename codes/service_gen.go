@@ -424,7 +424,7 @@ func (svc *Service) generateFileServiceHandle(fns []*Fn) (code gcg.Code, err err
 			if fn.HasValidate() {
 				body.Tab().Tab().Token("validateErr := validators.Validate(arg)", gcg.NewPackage("github.com/aacfactory/fns/service/validators")).Line()
 				body.Tab().Tab().Token("if validateErr != nil {").Line()
-				body.Tab().Tab().Tab().Token(fmt.Sprintf("err = validateErr.WithMeta(\"service\", _name).WithMeta(\"fn\", %s).WithCause(validateErr)", key)).Line()
+				body.Tab().Tab().Tab().Token(fmt.Sprintf("err = errors.BadRequest(\"%s: request argument is invalid\").WithCause(validateErr).WithMeta(\"service\", _name).WithMeta(\"fn\", %s)", svc.Name(), key)).Line()
 				body.Tab().Tab().Token("return").Line()
 				body.Tab().Tab().Token("}").Line()
 			}
