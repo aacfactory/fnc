@@ -18,11 +18,11 @@ package codes
 
 import (
 	"fmt"
-	"github.com/aacfactory/fnc/commons"
+	"github.com/aacfactory/errors"
+	"github.com/aacfactory/forg"
 	"github.com/urfave/cli/v2"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 var Command = &cli.Command{
@@ -33,45 +33,45 @@ var Command = &cli.Command{
 	ArgsUsage:   "",
 	Category:    "",
 	Action: func(ctx *cli.Context) (err error) {
-		//generating := commons.NewLoading("generating ...", 500*time.Millisecond)
-		//generating.Show()
-		//defer generating.Close()
-
+		debug := ctx.Bool("debug")
 		projectDir := strings.TrimSpace(ctx.Args().First())
 		if projectDir == "" {
 			projectDir = "."
 		}
 		projectDir, err = filepath.Abs(projectDir)
 		if err != nil {
-			//loading.Close()
-			err = fmt.Errorf("fnc: codes failed for project path is invalid, %v", err)
+			err = errors.Warning("fnc: codes failed").WithCause(errors.Warning("fnc: get absolute representation of project dir failed")).WithMeta("dir", projectDir)
 			return
 		}
-		scanning := commons.NewLoading("scanning ...", 500*time.Millisecond)
-		scanning.Show()
-		debug := ctx.Bool("debug")
-		p, pErr := NewProject(projectDir, debug)
-		if pErr != nil {
-			scanning.Close()
-			err = pErr
+		work := ctx.String("work")
+		var project *forg.Project
+		if work != "" {
+			project, err = forg.Load(projectDir, forg.WithWorkspace(work))
+		} else {
+			project, err = forg.Load(projectDir)
+		}
+		if err != nil {
+			err = errors.Warning("fnc: codes failed").WithCause(err)
 			return
 		}
-
-		scanErr := p.Scan()
-		scanning.Close()
-		if scanErr != nil {
-			err = scanErr
+		process, codingErr := project.Coding(ctx.Context)
+		if codingErr != nil {
+			err = errors.Warning("fnc: codes failed").WithCause(codingErr)
 			return
 		}
-		generating := commons.NewLoading("generating ...", 500*time.Millisecond)
-		generating.Show()
-		generateErr := p.Generate()
-		generating.Close()
-		if generateErr != nil {
-			err = generateErr
-			return
+		results := process.Start(ctx.Context)
+		for {
+			result, ok := <-results
+			if !ok {
+				if debug {
+					fmt.Println("fnc: codes finished")
+				}
+				break
+			}
+			if debug {
+				fmt.Println(result)
+			}
 		}
-		fmt.Println("generated!!!")
 		return
 	},
 	Flags: []cli.Flag{
@@ -80,6 +80,14 @@ var Command = &cli.Command{
 			EnvVars:  []string{"FNC_DEBUG"},
 			Usage:    "print debug infos",
 			Required: false,
+		},
+		&cli.StringFlag{
+			Name:      "work",
+			FilePath:  "",
+			Usage:     "set workspace file path",
+			Required:  false,
+			EnvVars:   []string{"FNC_WORK"},
+			TakesFile: false,
 		},
 	},
 }
