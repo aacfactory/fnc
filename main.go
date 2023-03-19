@@ -28,7 +28,7 @@ import (
 
 const (
 	Name      = "FNC"
-	Version   = "v1.10.18"
+	Version   = "v1.13.0"
 	Usage     = "see COMMANDS"
 	Copyright = `Copyright 2021 Wang Min Xiang
 

@@ -24,6 +24,7 @@ import (
 	"github.com/aacfactory/forg/files"
 	"github.com/aacfactory/forg/processes"
 	"path/filepath"
+	"time"
 )
 
 func Write(ctx context.Context, path string, dir string) (err error) {
@@ -87,6 +88,11 @@ func Write(ctx context.Context, path string, dir string) (err error) {
 			break
 		}
 		fmt.Println(result)
+		if result.Error != nil {
+			fmt.Println(fmt.Sprintf("%+v", result.Error))
+			_ = process.Abort(1 * time.Second)
+			break
+		}
 	}
 	return
 }

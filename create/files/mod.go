@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 func NewModFile(path string, dir string) (mf *ModFile, err error) {
@@ -58,7 +59,13 @@ func (mf *ModFile) Write(ctx context.Context) (err error) {
 		err = errors.Warning("forg: mod file write failed").WithCause(pathErr).WithMeta("filename", mf.filename)
 		return
 	}
-	versionErr := f.AddGoStmt(runtime.Version())
+	goVersion := runtime.Version()[2:]
+	goVersionItems := strings.Split(goVersion, ".")
+	if len(goVersionItems) < 2 {
+		err = errors.Warning("forg: mod file write failed").WithCause(errors.Warning("invalid go runtime version").WithMeta("version", runtime.Version())).WithMeta("filename", mf.filename)
+		return
+	}
+	versionErr := f.AddGoStmt(strings.Join(goVersionItems[0:2], "."))
 	if versionErr != nil {
 		err = errors.Warning("forg: mod file write failed").WithCause(versionErr).WithMeta("filename", mf.filename)
 		return
