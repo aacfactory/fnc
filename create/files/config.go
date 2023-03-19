@@ -26,6 +26,46 @@ import (
 	"strings"
 )
 
+func NewConfigFiles(dir string) (v []*ConfigFile, err error) {
+	v = make([]*ConfigFile, 0, 1)
+	// root
+	root, rootErr := NewConfigFile("", dir)
+	if rootErr != nil {
+		err = rootErr
+		return
+	}
+	v = append(v, root)
+	// local
+	local, localErr := NewConfigFile("local", dir)
+	if localErr != nil {
+		err = localErr
+		return
+	}
+	v = append(v, local)
+	// dev
+	dev, devErr := NewConfigFile("dev", dir)
+	if devErr != nil {
+		err = devErr
+		return
+	}
+	v = append(v, dev)
+	// test
+	test, testErr := NewConfigFile("test", dir)
+	if testErr != nil {
+		err = testErr
+		return
+	}
+	v = append(v, test)
+	// prod
+	prod, prodErr := NewConfigFile("prod", dir)
+	if prodErr != nil {
+		err = prodErr
+		return
+	}
+	v = append(v, prod)
+	return
+}
+
 func NewConfigFile(kind string, dir string) (cf *ConfigFile, err error) {
 	if !filepath.IsAbs(dir) {
 		dir, err = filepath.Abs(dir)

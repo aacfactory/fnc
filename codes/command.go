@@ -26,7 +26,23 @@ import (
 )
 
 var Command = &cli.Command{
-	Name:        "codes",
+	Name: "codes",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:     "debug",
+			EnvVars:  []string{"FNC_DEBUG"},
+			Usage:    "print debug infos",
+			Required: false,
+		},
+		&cli.StringFlag{
+			Name:      "work",
+			FilePath:  "",
+			Usage:     "set workspace file path",
+			Required:  false,
+			EnvVars:   []string{"FNC_WORK"},
+			TakesFile: false,
+		},
+	},
 	Aliases:     nil,
 	Usage:       "codes {project path}",
 	Description: "scan fns project and generate fn codes",
@@ -38,11 +54,14 @@ var Command = &cli.Command{
 		if projectDir == "" {
 			projectDir = "."
 		}
-		projectDir, err = filepath.Abs(projectDir)
-		if err != nil {
-			err = errors.Warning("fnc: codes failed").WithCause(errors.Warning("fnc: get absolute representation of project dir failed")).WithMeta("dir", projectDir)
-			return
+		if !filepath.IsAbs(projectDir) {
+			projectDir, err = filepath.Abs(projectDir)
+			if err != nil {
+				err = errors.Warning("fnc: codes failed").WithCause(err).WithMeta("dir", projectDir)
+				return
+			}
 		}
+		projectDir = filepath.ToSlash(projectDir)
 		work := ctx.String("work")
 		var project *forg.Project
 		if work != "" {
@@ -73,21 +92,5 @@ var Command = &cli.Command{
 			}
 		}
 		return
-	},
-	Flags: []cli.Flag{
-		&cli.BoolFlag{
-			Name:     "debug",
-			EnvVars:  []string{"FNC_DEBUG"},
-			Usage:    "print debug infos",
-			Required: false,
-		},
-		&cli.StringFlag{
-			Name:      "work",
-			FilePath:  "",
-			Usage:     "set workspace file path",
-			Required:  false,
-			EnvVars:   []string{"FNC_WORK"},
-			TakesFile: false,
-		},
 	},
 }

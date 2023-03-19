@@ -18,6 +18,7 @@ package create
 
 import (
 	"github.com/aacfactory/errors"
+	"github.com/aacfactory/fnc/create/files"
 	"github.com/urfave/cli/v2"
 	"path/filepath"
 	"strings"
@@ -26,16 +27,16 @@ import (
 var Command = &cli.Command{
 	Name:        "create",
 	Aliases:     nil,
-	Usage:       "create .",
+	Usage:       "create -p {project path} {project dir}",
 	Description: "create fns project",
 	ArgsUsage:   "",
 	Category:    "",
 	Flags: []cli.Flag{
-		&cli.BoolFlag{
-			Name:     "u",
-			Usage:    "go get -u",
-			Value:    false,
-			Required: false,
+		&cli.StringFlag{
+			Name:     "path",
+			Aliases:  []string{"p"},
+			Required: true,
+			Usage:    "project go mod path",
 		},
 	},
 	Action: func(ctx *cli.Context) (err error) {
@@ -43,12 +44,24 @@ var Command = &cli.Command{
 		if projectDir == "" {
 			projectDir = "."
 		}
-		projectDir, err = filepath.Abs(projectDir)
-		if err != nil {
-			err = errors.Warning("fnc: create fns project failed").WithCause(err).WithMeta("dir", projectDir)
+		if !filepath.IsAbs(projectDir) {
+			projectDir, err = filepath.Abs(projectDir)
+			if err != nil {
+				err = errors.Warning("fnc: create fns project failed").WithCause(err).WithMeta("dir", projectDir)
+				return
+			}
+		}
+		projectDir = filepath.ToSlash(projectDir)
+		projectPath := strings.TrimSpace(ctx.String("path"))
+		if projectPath == "" {
+			err = errors.Warning("fnc: create fns project failed").WithCause(errors.Warning("path is required")).WithMeta("dir", projectDir)
 			return
 		}
-		// check mod
+		writeErr := files.Write(ctx.Context, projectPath, projectDir)
+		if writeErr != nil {
+			err = errors.Warning("fnc: create fns project failed").WithCause(writeErr).WithMeta("dir", projectDir).WithMeta("path", projectPath)
+			return
+		}
 		return
 	},
 }
