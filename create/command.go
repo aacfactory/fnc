@@ -27,7 +27,7 @@ import (
 var Command = &cli.Command{
 	Name:        "create",
 	Aliases:     nil,
-	Usage:       "create -p {project path} {project dir}",
+	Usage:       "fnc create -p {project path} {project dir}",
 	Description: "create fns project",
 	ArgsUsage:   "",
 	Category:    "",

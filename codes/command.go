@@ -36,7 +36,7 @@ var Command = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:      "work",
-			FilePath:  "",
+			Aliases:   []string{"w"},
 			Usage:     "set workspace file path",
 			Required:  false,
 			EnvVars:   []string{"FNC_WORK"},
@@ -44,7 +44,7 @@ var Command = &cli.Command{
 		},
 	},
 	Aliases:     nil,
-	Usage:       "codes {project path}",
+	Usage:       "fnc codes {project path}",
 	Description: "scan fns project and generate fn codes",
 	ArgsUsage:   "",
 	Category:    "",

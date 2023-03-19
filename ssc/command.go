@@ -25,7 +25,7 @@ import (
 var Command = &cli.Command{
 	Name:        "ssc",
 	Aliases:     nil,
-	Usage:       "ssc --cn=common_name .",
+	Usage:       "fnc ssc --cn=common_name .",
 	Description: "create self signed ca",
 	ArgsUsage:   "",
 	Category:    "",
