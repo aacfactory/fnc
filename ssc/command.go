@@ -17,7 +17,7 @@
 package ssc
 
 import (
-	"fmt"
+	"github.com/aacfactory/errors"
 	"github.com/urfave/cli/v2"
 	"strings"
 )
@@ -25,7 +25,7 @@ import (
 var Command = &cli.Command{
 	Name:        "ssc",
 	Aliases:     nil,
-	Usage:       "ssc --cn=common_name .",
+	Usage:       "fnc ssc --cn=common_name .",
 	Description: "create self signed ca",
 	ArgsUsage:   "",
 	Category:    "",
@@ -51,10 +51,14 @@ var Command = &cli.Command{
 		full := ctx.Bool("full")
 		outputDir := strings.TrimSpace(ctx.Args().First())
 		if outputDir == "" {
-			err = fmt.Errorf("fnc: create ssc failed for output is undefined")
+			err = errors.Warning("fnc: create ssc failed").WithCause(errors.Warning("output is undefined"))
 			return
 		}
 		err = generate(cn, full, outputDir)
+		if err != nil {
+			err = errors.Warning("fnc: create ssc failed").WithCause(err)
+			return
+		}
 		return
 	},
 }

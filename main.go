@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/aacfactory/fnc/codes"
-	"github.com/aacfactory/fnc/project"
+	"github.com/aacfactory/fnc/create"
 	"github.com/aacfactory/fnc/ssc"
 	"github.com/urfave/cli/v2"
 	"os"
@@ -28,7 +28,7 @@ import (
 
 const (
 	Name      = "FNC"
-	Version   = "v1.10.18"
+	Version   = "v1.13.0"
 	Usage     = "see COMMANDS"
 	Copyright = `Copyright 2021 Wang Min Xiang
 
@@ -46,7 +46,6 @@ limitations under the License.`
 )
 
 func main() {
-	//runtime.GOMAXPROCS(runtime.NumCPU())
 	app := cli.NewApp()
 	app.Name = Name
 	app.Usage = Usage
@@ -59,12 +58,12 @@ func main() {
 	}
 	app.Copyright = Copyright
 	app.Commands = []*cli.Command{
+		create.Command,
 		codes.Command,
-		project.Command,
 		ssc.Command,
 	}
 	if err := app.RunContext(context.Background(), os.Args); err != nil {
-		fmt.Println("fnc", "failed", err)
+		fmt.Println(fmt.Sprintf("%+v", err))
 	}
 
 }
