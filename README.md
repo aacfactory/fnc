@@ -3,16 +3,21 @@
 fns codes generator
 
 ## Install
+### Download
+See [releases](https://github.com/aacfactory/fnc/releases)
+### Build from source
 ```bash
-go install github.com/aacfactory/fnc@latest
+go get github.com/aacfactory/fnc
+go install github.com/aacfactory/fnc
 ```
 ## Usage
 ### Create project
 ```bash
 cd {your project dir}
-fnc create .
+fnc create -p {project mod path} .
 ```
-### Generate fn service and proxy
+### Generate codes
+mark `go:generate`
 ```go
 // main
 // go:generate fnc codes .
@@ -20,6 +25,12 @@ func main() {
 	
 }
 ```
+run generate
+```bash
+go generate
+```
+
+### Mark annotations
 Enable service annotations.  
 doc.go in fn source file's folder.
 ```go
@@ -27,19 +38,15 @@ doc.go in fn source file's folder.
 // @service samples
 // @title samples
 // @description samples service
-// @internal false
 package samples
 ```
 Enable fn annotations.
 ```go
 // query
 // @fn query
-// @validate true
-// @authorization true
-// @permission roleA,roleB
 // @title query
 // @description query
-func query(ctx context.Context, argument QueryArgument) (result []*Sample, err errors.CodeError) {
+func query(ctx context.Context, argument QueryArgument) (result Result, err errors.CodeError) {
 
 	return
 }
@@ -125,37 +132,10 @@ type Sample struct {
 	Raw json.RawMessage
 }
 ```
-## Annotations
-* @service
-    > service namespace  
-    example: @service foo  
-* @internal
-    > an internal service, that all fns in service can not be accessed by public requests. 
-    example @internal true
-* @fn
-    > fn address  
-    example: @fn foo 
-* @validate
-    > property [validate](https://github.com/go-playground/validator/v10)  
-    mark property need be validated.
-    example @validate true
-* @authorization
-    > fn needs authorization
-    example: @authorization true
-* @permission
-    > fn has permission
-    example: @permission roleA,roleB
-* @transaction
-    > open transaction in fn, and auto commit after succeed action or rollback after failed action.
-    support sql, postgres and mysql only now.
-    example: @transaction sql
-* @title
-    > title 
-* @description
-    > description
+
 ## Note
 > Type of Fn Argument must be value object.  
 > Builtin, Star Type, Map, Array and Alias Type are not supported.  
 
-> Type of Fn Result must be star object or array.
+> Type of Fn Result must be object type, when use array type, please use ident.
 > Builtin, Value Object, Map, Array and Alias Type are not supported.  
