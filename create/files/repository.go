@@ -32,21 +32,17 @@ func NewRepositoryFile(dir string) (hooks *RepositoryFile, err error) {
 			return
 		}
 	}
-	dir = filepath.Join(dir, "repositories")
-	if !files.ExistFile(dir) {
-		mdErr := os.MkdirAll(dir, 0600)
-		if mdErr != nil {
-			err = errors.Warning("forg: new repositories file failed").WithCause(mdErr).WithMeta("dir", dir)
-			return
-		}
-	}
+	dir = filepath.ToSlash(filepath.Join(dir, "repositories"))
+
 	hooks = &RepositoryFile{
+		dir:      dir,
 		filename: filepath.ToSlash(filepath.Join(dir, "doc.go")),
 	}
 	return
 }
 
 type RepositoryFile struct {
+	dir      string
 	filename string
 }
 
@@ -56,6 +52,13 @@ func (f *RepositoryFile) Name() (name string) {
 }
 
 func (f *RepositoryFile) Write(ctx context.Context) (err error) {
+	if !files.ExistFile(f.dir) {
+		mdErr := os.MkdirAll(f.dir, 0600)
+		if mdErr != nil {
+			err = errors.Warning("forg: repositories file write failed").WithCause(mdErr).WithMeta("dir", f.dir)
+			return
+		}
+	}
 	const (
 		content = `// Package repositories
 // read https://github.com/aacfactory/fns-contrib/tree/main/databases/sql for more details.

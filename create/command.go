@@ -17,6 +17,7 @@
 package create
 
 import (
+	"fmt"
 	"github.com/aacfactory/errors"
 	"github.com/aacfactory/fnc/create/files"
 	"github.com/urfave/cli/v2"
@@ -62,6 +63,7 @@ var Command = &cli.Command{
 			err = errors.Warning("fnc: create fns project failed").WithCause(writeErr).WithMeta("dir", projectDir).WithMeta("path", projectPath)
 			return
 		}
+		fmt.Println("fnc: project has been created, please run `go mod tidy` to fetch requires!")
 		return
 	},
 }

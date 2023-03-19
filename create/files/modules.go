@@ -34,13 +34,6 @@ func NewModulesFile(path string, dir string) (mf *ModulesFile, err error) {
 		}
 	}
 	dir = filepath.ToSlash(filepath.Join(dir, "modules"))
-	if !files.ExistFile(dir) {
-		mdErr := os.MkdirAll(dir, 0600)
-		if mdErr != nil {
-			err = errors.Warning("forg: new modules file failed").WithCause(mdErr).WithMeta("dir", dir)
-			return
-		}
-	}
 	mf = &ModulesFile{
 		path: path,
 		dir:  dir,
@@ -59,6 +52,13 @@ func (mf *ModulesFile) Name() (name string) {
 }
 
 func (mf *ModulesFile) Write(ctx context.Context) (err error) {
+	if !files.ExistFile(mf.dir) {
+		mdErr := os.MkdirAll(mf.dir, 0600)
+		if mdErr != nil {
+			err = errors.Warning("forg: modules file write failed").WithCause(mdErr).WithMeta("dir", mf.dir)
+			return
+		}
+	}
 	err = mf.writeServices(ctx)
 	if err != nil {
 		return
@@ -221,7 +221,6 @@ import (
 	"time"
 
 	"github.com/aacfactory/errors"
-	"#path#/modules/examples/components"
 	"github.com/aacfactory/fns/service"
 	"github.com/aacfactory/fns/service/documents"
 )

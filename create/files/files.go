@@ -79,12 +79,10 @@ func Write(ctx context.Context, path string, dir string) (err error) {
 		return
 	}
 	process.Add("main: writing", codes.Unit(main))
-
 	results := process.Start(ctx)
 	for {
 		result, ok := <-results
 		if !ok {
-			fmt.Println("fnc: project created")
 			break
 		}
 		fmt.Println(result)

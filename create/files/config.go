@@ -74,14 +74,6 @@ func NewConfigFile(kind string, dir string) (cf *ConfigFile, err error) {
 			return
 		}
 	}
-	dir = filepath.Join(dir, "configs")
-	if !files.ExistFile(dir) {
-		mdErr := os.MkdirAll(dir, 0600)
-		if mdErr != nil {
-			err = errors.Warning("forg: new config file failed").WithCause(mdErr).WithMeta("dir", dir)
-			return
-		}
-	}
 	name := "fns.yaml"
 	if kind != "" {
 		kind = strings.TrimSpace(strings.ToLower(kind))
@@ -102,10 +94,11 @@ func NewConfigFile(kind string, dir string) (cf *ConfigFile, err error) {
 			err = errors.Warning("").WithCause(errors.Warning("kind is invalid")).WithMeta("kind", kind)
 		}
 	}
-
+	dir = filepath.ToSlash(filepath.Join(dir, "configs"))
 	filename := filepath.ToSlash(filepath.Join(dir, name))
 	cf = &ConfigFile{
 		kind:     kind,
+		dir:      dir,
 		filename: filename,
 	}
 	return
@@ -113,6 +106,7 @@ func NewConfigFile(kind string, dir string) (cf *ConfigFile, err error) {
 
 type ConfigFile struct {
 	kind     string
+	dir      string
 	filename string
 }
 
@@ -122,6 +116,13 @@ func (cf *ConfigFile) Name() (name string) {
 }
 
 func (cf *ConfigFile) Write(ctx context.Context) (err error) {
+	if !files.ExistFile(cf.dir) {
+		mdErr := os.MkdirAll(cf.dir, 0600)
+		if mdErr != nil {
+			err = errors.Warning("forg: config file write failed").WithCause(mdErr).WithMeta("dir", cf.dir)
+			return
+		}
+	}
 	config := Config{}
 	switch cf.kind {
 	case "local":

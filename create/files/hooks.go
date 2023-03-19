@@ -32,21 +32,16 @@ func NewHooksFile(dir string) (hooks *HooksFile, err error) {
 			return
 		}
 	}
-	dir = filepath.Join(dir, "hooks")
-	if !files.ExistFile(dir) {
-		mdErr := os.MkdirAll(dir, 0600)
-		if mdErr != nil {
-			err = errors.Warning("forg: new hooks file failed").WithCause(mdErr).WithMeta("dir", dir)
-			return
-		}
-	}
+	dir = filepath.ToSlash(filepath.Join(dir, "hooks"))
 	hooks = &HooksFile{
+		dir:      dir,
 		filename: filepath.ToSlash(filepath.Join(dir, "doc.go")),
 	}
 	return
 }
 
 type HooksFile struct {
+	dir      string
 	filename string
 }
 
@@ -56,6 +51,13 @@ func (hooks *HooksFile) Name() (name string) {
 }
 
 func (hooks *HooksFile) Write(ctx context.Context) (err error) {
+	if !files.ExistFile(hooks.dir) {
+		mdErr := os.MkdirAll(hooks.dir, 0600)
+		if mdErr != nil {
+			err = errors.Warning("forg: hooks file write failed").WithCause(mdErr).WithMeta("dir", hooks.dir)
+			return
+		}
+	}
 	const (
 		content = `// Package hooks
 // read https://github.com/aacfactory/fns/blob/main/docs/hooks.md for more details.
