@@ -15,3 +15,19 @@
  */
 
 package files
+
+import "context"
+
+type ModulesFile struct {
+	dir string
+}
+
+func (mf *ModulesFile) Name() (name string) {
+	name = mf.dir
+	return
+}
+
+func (mf *ModulesFile) Write(ctx context.Context) (err error) {
+
+	return
+}

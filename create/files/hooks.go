@@ -15,3 +15,56 @@
  */
 
 package files
+
+import (
+	"context"
+	"github.com/aacfactory/errors"
+	"github.com/aacfactory/forg/files"
+	"os"
+	"path/filepath"
+)
+
+func NewHooksFile(dir string) (hooks *HooksFile, err error) {
+	if !filepath.IsAbs(dir) {
+		dir, err = filepath.Abs(dir)
+		if err != nil {
+			err = errors.Warning("forg: new hooks file failed").WithCause(err).WithMeta("dir", dir)
+			return
+		}
+	}
+	dir = filepath.Join(dir, "hooks")
+	if !files.ExistFile(dir) {
+		mdErr := os.MkdirAll(dir, 0600)
+		if mdErr != nil {
+			err = errors.Warning("forg: new hooks file failed").WithCause(mdErr).WithMeta("dir", dir)
+			return
+		}
+	}
+	hooks = &HooksFile{
+		filename: filepath.ToSlash(filepath.Join(dir, "doc.go")),
+	}
+	return
+}
+
+type HooksFile struct {
+	filename string
+}
+
+func (hooks *HooksFile) Name() (name string) {
+	name = hooks.filename
+	return
+}
+
+func (hooks *HooksFile) Write(ctx context.Context) (err error) {
+	const (
+		content = `// Package hooks
+// read https://github.com/aacfactory/fns/blob/main/docs/hooks.md for more details.
+package hooks`
+	)
+	writeErr := os.WriteFile(hooks.filename, []byte(content), 0600)
+	if writeErr != nil {
+		err = errors.Warning("forg: hooks file write failed").WithCause(writeErr).WithMeta("filename", hooks.filename)
+		return
+	}
+	return
+}

@@ -15,3 +15,56 @@
  */
 
 package files
+
+import (
+	"context"
+	"github.com/aacfactory/errors"
+	"github.com/aacfactory/forg/files"
+	"os"
+	"path/filepath"
+)
+
+func NewRepositoryFile(dir string) (hooks *RepositoryFile, err error) {
+	if !filepath.IsAbs(dir) {
+		dir, err = filepath.Abs(dir)
+		if err != nil {
+			err = errors.Warning("forg: new repositories file failed").WithCause(err).WithMeta("dir", dir)
+			return
+		}
+	}
+	dir = filepath.Join(dir, "repositories")
+	if !files.ExistFile(dir) {
+		mdErr := os.MkdirAll(dir, 0600)
+		if mdErr != nil {
+			err = errors.Warning("forg: new repositories file failed").WithCause(mdErr).WithMeta("dir", dir)
+			return
+		}
+	}
+	hooks = &RepositoryFile{
+		filename: filepath.ToSlash(filepath.Join(dir, "doc.go")),
+	}
+	return
+}
+
+type RepositoryFile struct {
+	filename string
+}
+
+func (f *RepositoryFile) Name() (name string) {
+	name = f.filename
+	return
+}
+
+func (f *RepositoryFile) Write(ctx context.Context) (err error) {
+	const (
+		content = `// Package repositories
+// read https://github.com/aacfactory/fns-contrib/tree/main/databases/sql for more details.
+package hooks`
+	)
+	writeErr := os.WriteFile(f.filename, []byte(content), 0600)
+	if writeErr != nil {
+		err = errors.Warning("forg: repositories file write failed").WithCause(writeErr).WithMeta("filename", f.filename)
+		return
+	}
+	return
+}
