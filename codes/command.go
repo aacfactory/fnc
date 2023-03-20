@@ -90,6 +90,9 @@ var Command = &cli.Command{
 			if debug {
 				fmt.Println(result)
 			}
+			if result.Error != nil {
+				fmt.Println(fmt.Sprintf("%+v", result.Error))
+			}
 		}
 		return
 	},

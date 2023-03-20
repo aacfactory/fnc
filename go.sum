@@ -4,8 +4,8 @@ github.com/aacfactory/cases v1.1.0 h1:oY7wSX57PJav72ZDFmmdmWPrEUXjc5zh8ckDAJM4iS
 github.com/aacfactory/cases v1.1.0/go.mod h1:Utk93dgZ/xXw2GTSM1QU2y1+R4LDEUVel2LtO09Mxt0=
 github.com/aacfactory/errors v1.13.4 h1:VwIvgfhr3izBtMei+dYWQdN4EIXFbwapW7SLgaQeL+A=
 github.com/aacfactory/errors v1.13.4/go.mod h1:WUwbURzkHAraSqTIy6QGhq/W7TL+piTYHzdi/bbpk5s=
-github.com/aacfactory/forg v1.0.0 h1:6lB8UySQTnYcIw85jhsBgBm9TTpinVXrQfbw8gv5a24=
-github.com/aacfactory/forg v1.0.0/go.mod h1:OjGqgO6hSGLzu0c3snf13OYJ70vAqQb7OFzh1uqr86c=
+github.com/aacfactory/forg v1.0.1 h1:xr8KzYc2P6E8Y5Z2J4QSsdyvWMCkfrCrIco5z1LVl4A=
+github.com/aacfactory/forg v1.0.1/go.mod h1:OjGqgO6hSGLzu0c3snf13OYJ70vAqQb7OFzh1uqr86c=
 github.com/aacfactory/gcg v1.0.4 h1:uUCdTIigQBqb9bIKTXp0Kx4tfgg6SXN+TDq6KFDJGiI=
 github.com/aacfactory/gcg v1.0.4/go.mod h1:YfcsMjXvaTSGsBFhjmpgEKL63JqKA1UUKpc56h6jkvE=
 github.com/cpuguy83/go-md2man/v2 v2.0.2 h1:p1EgwI/C7NhT0JmVkwCD2ZBK8j4aeHQX2pMHHBfMQ6w=
