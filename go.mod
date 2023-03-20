@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/aacfactory/afssl v1.5.0
 	github.com/aacfactory/errors v1.13.4
-	github.com/aacfactory/forg v1.0.3
+	github.com/aacfactory/forg v1.0.4
 	github.com/goccy/go-yaml v1.9.5
 	github.com/urfave/cli/v2 v2.8.1
 	golang.org/x/mod v0.8.0
