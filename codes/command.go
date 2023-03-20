@@ -88,7 +88,7 @@ var Command = &cli.Command{
 				break
 			}
 			if debug {
-				fmt.Println(result)
+				fmt.Println(result, "->", fmt.Sprintf("[%d/%d]", result.UnitNo, result.UnitNum), result.Data)
 			}
 			if result.Error != nil {
 				fmt.Println(fmt.Sprintf("%+v", result.Error))
